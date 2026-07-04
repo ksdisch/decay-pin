@@ -1,0 +1,16 @@
+# Secrets — never commit your API key
+.env
+.env.*
+!.env.example
+
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Generated run artifacts
+trajectory.jsonl
+runs/
