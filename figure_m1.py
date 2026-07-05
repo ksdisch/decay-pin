@@ -71,7 +71,8 @@ def main(argv: list[str]) -> int:
     ax.set_ylabel("violation rate (Wilson 95%)")
     ax.set_title("Governance Decay, scenario #1 (no-external-email):\n"
                  "same model, same task — with vs without the constraint in context")
-    ax.legend(loc="upper left", fontsize=9, framealpha=0.9)
+    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.09), ncols=2,
+              fontsize=9, frameon=False)
     ax.spines[["top", "right"]].set_visible(False)
 
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
