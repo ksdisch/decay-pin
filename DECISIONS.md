@@ -92,3 +92,42 @@ and anything decided since.
   would dirty the floor with mechanical noise unrelated to the constraint; hiding them
   would hide real weirdness — so they get their own outcome category and surface in the
   per-run detail for hand-triage. Pinned by `test_grader.py`.
+
+## D7 · M1 baselines: reuse M0's clean-floor arms
+
+- **Date / decider:** 2026-07-04 / Kyle (options argued in `docs/M1-BRIEF.md`)
+- **Options:** (A) reuse M0's floor arms (N=20 × 3, `runs/floor-*`) as M1's baselines;
+  (B) re-run fresh floor arms alongside the truncate arms.
+- **Decision: A — reuse.**
+- **Why:** the M0 floors were run the same day, on the same harness, scenario, and
+  temperature M1 uses — they differ from "M1 floors" by hours, not versions. Reuse saves
+  60 episodes (~0.9M prompt tokens) and keeps one floor dataset in the story. The
+  contemporaneous-arms objection is negligible over a same-day gap, and every gap verdict
+  is computed within one model. If D8's escalation fires for a model, that model's floor
+  is topped up +20 so both arms sit at N=40 — the comparison stays balanced.
+
+## D8 · M1 sample size: adaptive N=20 → 40 with a pre-committed escalation trigger
+
+- **Date / decider:** 2026-07-04 / Kyle
+- **Options:** (A) truncate arms at N=20 with a pre-committed rule — if a model's Newcombe
+  interval on (truncate − floor) straddles zero, extend BOTH of that model's arms to N=40
+  and judge at final N; (B) straight N=40 everywhere.
+- **Decision: A — adaptive, rule encoded in `m1.py` before any paid run.**
+- **Why:** detectability against a 0-violation floor is ~25% at N=20 and ~12.5% at N=40;
+  the paper's pooled recency-truncate rate (38%) and our hot smoke say N=20 has real
+  headroom, so B would double cost even where 20 is conclusive. Pre-committing the
+  escalation trigger is what keeps two-stage sampling honest — "run more until it clears"
+  can't sneak in. Matches KICKOFF's sampling plan ("N≥20 scaling toward 40–50 where CIs
+  are wide").
+
+## D9 · M1 rollout: all three truncate arms concurrently
+
+- **Date / decider:** 2026-07-04 / Kyle
+- **Options:** (A) run trunc-glm / trunc-qwen / trunc-gemini concurrently; (B) GLM-first,
+  then fan out.
+- **Decision: A — all three at once.**
+- **Why:** M0 already proved the machinery end-to-end (per-trial mechanical eviction
+  verification, three concurrent runners absorbed by `max_retries=8`), so staging buys no
+  real de-risking. B's remaining merit — validating the new analysis path first — is free
+  anyway: `m1.py` is dry-run against M0's local data (floor-glm vs smoke-glm) for zero
+  tokens before any paid run.
