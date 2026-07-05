@@ -131,3 +131,51 @@ and anything decided since.
   real de-risking. B's remaining merit — validating the new analysis path first — is free
   anyway: `m1.py` is dry-run against M0's local data (floor-glm vs smoke-glm) for zero
   tokens before any paid run.
+
+## D10 · M2 pin mechanics: re-inject at the top of context, under the system prompt
+
+- **Date / decider:** 2026-07-05 / Kyle (options argued in `docs/M2-BRIEF.md`)
+- **Options:** (A) after the compaction hook, if the constraint string is absent, insert
+  it verbatim as a user message at index 1 (right under the system prompt) — idempotent,
+  logged as its own trajectory event; (B) append it at the bottom, just before each model
+  call; (C) make `compact()` pin-aware and never evict the constraint turn.
+- **Decision: A — top-of-context re-injection.**
+- **Why:** A is what a real pinned buffer looks like (a block at the top of context) and
+  matches the paper's stated mechanism ("re-injected verbatim after every compaction")
+  literally — "exempt from compaction" is emergent, since any eviction of the pin is
+  undone before the next model call. It leaves the frozen, test-pinned D4 `compact()`
+  untouched, and it is the conservative placement: the top of context is the least
+  salient position, so restoration measured there is the harder, more defensible claim.
+  B confounds pinning with recency (it would measure "reminders work"); C modifies frozen
+  compaction code the M1 arms ran on to produce the same visible context as A.
+
+## D11 · M2 equivalence gate: pre-committed one-sided margin δ = +10 points
+
+- **Date / decider:** 2026-07-05 / Kyle
+- **Options:** (A) claim "statistically indistinguishable from the clean floor" only if
+  the Newcombe 95% upper bound on (pinned − floor) is ≤ +10 percentage points — which
+  only a 0-violation pinned arm at N=40 clears (+8.8%; 1/40 gives +12.9% and fails);
+  (B) δ = +20 points at N=20 (only 0/20 clears, at +16.1%); (C) no formal equivalence
+  claim — direction half only, floor comparison reported descriptively.
+- **Decision: A — δ = +10, one-sided, requiring N=40 pinned arms.**
+- **Why:** an interval that merely includes zero is weak evidence of equivalence, so the
+  KICKOFF claim's second half needs a pre-committed margin to have teeth. δ = 10 is the
+  tightest round margin the best achievable bound permits, and its strictness mirrors
+  the paper's actual claim (pinning restores the ~0% floor, not "a lowish rate"). One
+  violation in 40 degrades the verdict honestly to PARTIAL rather than bending the gate.
+  B's margin is flabby next to the 100-point gap it closes; C softens the capstone.
+
+## D12 · M2 comparators and N: reuse both prior arms; pinned arms straight N=40
+
+- **Date / decider:** 2026-07-05 / Kyle
+- **Options:** (A) reuse M0 floors + M1 truncate arms as comparators; pinned arms
+  straight N=40 × 3 models, concurrently; (B) reuse comparators, adaptive pinned arms
+  20→40 (extend only if 0/20); (C) re-run a fresh contemporaneous three-arm grid.
+- **Decision: A — reuse + straight N=40, all three models at once.**
+- **Why:** reuse is D7's settled precedent (same harness, scenario, temperature; the gap
+  is ~1 day and every comparison stays within one model); concurrency is D9's, proven
+  twice. Straight-40 inverts D8's adaptive logic on purpose: adaptivity paid off in M1
+  because escalation was *unlikely*, but here the extension to 40 is *expected* — the
+  D11 gate needs 40 clean trials and the paper predicts clean pins — so a two-stage plan
+  would almost surely fire its second stage anyway. Same expected cost, fewer moving
+  parts, no pooling step. ~120 episodes ≈ 2M prompt tokens, low single-digit dollars.
