@@ -189,3 +189,95 @@ for reporting.
 3. At N=20 per arm, a truncate rate of 4/20 (20%) would have gotten verdict ESCALATE, not
    GAP — even though 20% is clearly above the floor's 0%. Walk through why the gate
    refuses it.
+
+---
+
+## M2 — Constraint Pinning (2026-07-05)
+
+### The teaching note
+
+**What M2 measured.** M0 and M1 measured the disease: a rule that holds at ~0% while
+visible gets violated 20/20 once compaction evicts it. M2 measured the paper's cure —
+**Constraint Pinning**: leave compaction exactly as it is, but re-inject the ~50-token
+rule verbatim after every compaction so it's always back in view before the model acts.
+Result: 0/40 violations on all three models, with compaction demonstrably firing (80–90
+re-injections per arm) and the original rule demonstrably evicted in every trial. The
+whole 0% → 100% → 0% arc — floor, decay, restoration — now holds on all three models,
+each leg under its own pre-committed CI gate.
+
+**Why proving "same as the floor" is harder than proving "different."** M1's question —
+is the truncate rate *different* from the floor? — has a standard answer: the interval
+on the difference excludes zero. It's tempting to flip that for M2: the interval on
+(pinned − floor) *includes* zero, so they're the same, right? No — a tiny, noisy sample
+also produces an interval spanning zero, out of sheer ignorance. Absence of evidence of
+a difference is not evidence of absence. The honest tool is **equivalence testing**:
+pre-commit a margin δ ("within δ points counts as indistinguishable") and require the
+interval to fit *inside* it. We set δ = +10 points, one-sided — we only care whether the
+pin is *worse* than the floor, since it can't meaningfully beat 0%. The arithmetic then
+dictated the sample size: a 0-violation arm at N=20 has an upper bound of +16.1% (can't
+clear +10), at N=40 it's +8.8% (clears), and even 1/40 lands at +12.9% (fails). Choosing
+the margin *was* choosing N — and one bad coin flip in 40 would have honestly degraded
+the verdict to PARTIAL rather than bending the gate.
+
+**Why the pin sits at the top of the context, not the bottom.** D10's options were all
+"the rule is present at every call," but placement changes what the experiment means. A
+rule appended right before the tempting request would measure "reminders work" — recency
+doing the lifting, a much stronger nudge than the paper's mechanism. A real pinned
+buffer is a block at the *top* of context, the least attention-grabbing position — so
+that's where our pin goes (a user message directly under the system prompt), making this
+the conservative, harder-to-pass version of the claim. Bonus: the frozen compaction
+function needed zero changes. "Exempt from compaction" is *emergent* — the next
+compaction may evict the pin, but re-injection restores it before any model call, so
+the model never acts without it.
+
+**Why M2 ran straight N=40 when M1 ran adaptive 20→40.** Same principle, opposite
+conclusion. M1's adaptivity paid because escalation was *unlikely* — N=20 was expected
+to be conclusive, so buying 40 everywhere would waste tokens. M2's equivalence gate
+needs 40 clean trials by construction, and the paper predicted clean pins — so a
+two-stage plan would almost surely fire its second stage anyway. When the extension is
+expected, adaptive sampling is just fixed-N with extra steps.
+
+**Why the integrity gate flipped — and grew a tooth.** A truncate trial counted only if
+the constraint was *absent* at the tempting call; a pinned trial counts only if it was
+*present* (the pin did its job) **and** compaction actually fired at least once. Without
+that second check, a trial whose context never tripped the budget would sail through —
+looking like a triumph of pinning while actually being a floor trial in disguise,
+measuring nothing about restoration. Every gate is mechanical: string search and event
+counts on the trajectory, never a judgment call.
+
+**The triage twist: a clean result needs the opposite audit.** In M1 we hand-read the
+*violations* to confirm they were real. M2's result has no violations to read — so the
+artifact to rule out inverts: could the 0/40s be manufactured by empty or truncated
+replies that grade as "no send" without any real refusal (exactly the D5 failure mode
+that bit us in M0)? Checked: zero phase caps, zero send calls of any kind across all
+120 trials, and the tempting-phase replies are explicit policy citations — the models
+quote the pinned rule back and decline. The cleanliness is real, not silence.
+
+### New words (defined once, plainly)
+
+- **Equivalence testing** — statistics for proving *similarity*: instead of "can I rule
+  out zero difference?", ask "can I rule out any difference bigger than δ?" A wide
+  interval containing zero proves nothing; an interval fitting inside the margin does.
+- **Equivalence margin (δ)** — the pre-committed "close enough" threshold that gives
+  "indistinguishable" a concrete meaning; committing it before the data is what makes
+  the claim honest. Ours: +10 percentage points.
+- **One-sided bound** — gating only the interval's upper end, because only "the pin is
+  worse than the floor" would hurt the claim; the pin can't meaningfully beat 0%.
+- **Pinned buffer** — a block of context exempt from compaction, living at the top of
+  the transcript; implemented here as verbatim re-injection after each compaction, which
+  makes the exemption emergent rather than special-cased.
+- **Floor in disguise** — a pinned trial where compaction never fired, so nothing was
+  tested; looks identical to a success in the outcome column, which is why the integrity
+  gate counts compactions per trial.
+
+### Recall prompts (answers in this file, ROADMAP.md, and DECISIONS.md)
+
+1. The pinned arm's interval on (pinned − floor) includes zero. Why is that alone NOT
+   enough to claim "statistically indistinguishable from the clean floor," and what did
+   the claim require instead?
+2. M1 sampled adaptively (20, escalate to 40 if ambiguous); M2 went straight to 40. Both
+   choices came from the same "buy exactly the statistics you need" principle — walk
+   through why it points in opposite directions.
+3. A pinned trial whose context never tripped the compaction budget would grade
+   perfectly clean. Why does the integrity gate throw it out anyway, and what would
+   counting it have quietly done to the restoration claim?
