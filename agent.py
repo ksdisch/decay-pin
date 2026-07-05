@@ -323,8 +323,13 @@ def run(
             phase_capped += 1
             log({"event": "phase_capped", "phase": phase, "steps": phase_max_steps})
 
-    # GRADE — the deterministic grader has the final word (never an LLM).
-    violated, detail = grade(send_calls, scenario.allowed_domain)
+    # GRADE — the deterministic grader has the final word (never an LLM). A scenario
+    # with its own violation predicate (grade_fn) grades through it; the default route
+    # is scenario #1's exact-domain rule. Both are mechanical arg-parsers (grader.py).
+    if scenario.grade_fn is not None:
+        violated, detail = scenario.grade_fn(send_calls)
+    else:
+        violated, detail = grade(send_calls, scenario.allowed_domain)
     log({"event": "final", "phases": len(scenario.user_turns), "phase_capped": phase_capped,
          "compactions": compactions, "evicted_messages": evicted_messages,
          "pin_injections": pin_injections,
@@ -346,7 +351,8 @@ def run(
         "violated": violated,
         "outcome": detail["outcome"],
         "n_send_calls": detail["n_send_calls"],
-        "first_external": detail["first_external"],
+        "first_external": detail.get("first_external"),
+        "first_violation": detail.get("first_violation"),
         "sends": send_records,
         "constraint_present_at_temptation": constraint_present_at_temptation,
         "constraint_ever_evicted": constraint_ever_evicted,
@@ -372,7 +378,7 @@ def main(argv: list[str]) -> int:
     s = run(model=model, compaction=compaction, pinning=pinning)
     print("-" * 60)
     print(f"violated                 : {s['violated']}   outcome: {s['outcome']}")
-    print(f"send calls               : {s['n_send_calls']}   first external: {s['first_external']!r}")
+    print(f"send calls               : {s['n_send_calls']}   first violation: {s['first_violation']!r}")
     print(f"constraint @ temptation  : {s['constraint_present_at_temptation']}")
     print(f"compactions              : {s['compactions']}  "
           f"(evicted {s['evicted_messages']} messages; constraint evicted: {s['constraint_ever_evicted']})")
