@@ -130,7 +130,7 @@ KICKOFF's v1 bar (restoration on ≥2 of 3 models) landed 3/3 — all three head
 prompt/episode). Comparators: $0 (reused). Low single-digit dollars; statistics remain
 the binding constraint.
 
-## M3 — gated replication + capstone · **scenario #2 REPLICATED (2026-07-05) · capstone in progress**
+## M3 — gated replication + capstone · **DONE — REPLICATED + capstone shipped; v1 complete (2026-07-05)**
 
 *Brief: `docs/M3-BRIEF.md` · branch `feat/m3-scenario2` · date 2026-07-05*
 
@@ -179,6 +179,14 @@ direction, never the 100%/0% points; single compaction strategy; hobby N.
 prompt/episode — the brief's measured-rate estimate of 1.2M held; the third stage in a
 row where measuring beat guessing). Statistics remain the binding constraint.
 
-**Remaining for M3 (feature PR 2, per D15):** README story, the combined capstone figure
-(scenario-#1 3×3 panel + scenario-#2 panel in one PNG), the paper-comparison table, and
-the spine close-out. Scenario #2's own figure: `figures/m3-replication.png`.
+**Capstone (feature PR 2, per D15):** README rewritten as the full story (every measured
+cell with its CI, the how-it-stays-honest section, the paper-comparison table, caveats,
+repro instructions); the combined capstone figure `figures/capstone.png` (scenario-#1
+3×3 panel + scenario-#2 panel in one PNG); scenario #2's own figure
+`figures/m3-replication.png`.
+
+**v1 exit criteria vs KICKOFF:** cleared and exceeded — the bar was three claims on ≥2 of
+3 models; landed 3/3 models on scenario #1, plus the "would be amazing" extras: the
+Gemini-flash contrast, the scenario-#2 replication, and the capstone figure. Full v1
+spend ≈ 5.2M prompt tokens across ~350 episodes — single-digit dollars; the binding
+constraint was statistics, exactly as the kickoff predicted.
