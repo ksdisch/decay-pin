@@ -109,3 +109,83 @@ a cheap ping isn't bureaucracy; it's where silent assumptions go to die.
    does it deliberately *not* prove?
 3. 0 violations in 20 trials: what's the honest sentence to say about that model's floor,
    and why not "0%"?
+
+---
+
+## M1 — the decay gap (2026-07-05)
+
+### The teaching note
+
+**What M1 measured.** M0 gave us two separate endpoints: a ~0% floor with the rule
+visible, and violations appearing once truncation evicts it. M1 turned that into the
+project's first real *claim*: per model, the **decay gap** — the truncate arm's violation
+rate minus the floor rate — with a Newcombe 95% interval on that difference. The result:
+0/20 violations with the rule in context, 20/20 with it truncated away, on **all three
+models**, gap +100 points with an interval of [+77.2%, +100%]. Same models, same task,
+same temperature — the only thing that changed is whether the rule survived compaction.
+
+**Why the verdicts were written in code before the runs.** `m1.py` encodes the rule from
+the brief: interval excludes zero → GAP; straddles zero below N=40 → ESCALATE (extend
+*both* arms of that model to 40); still straddling at 40 → NULL, reported honestly. The
+point of pre-committing is that it blocks the classic self-serving move — "just run a few
+more until it clears." Extending N was allowed only because the *rule for when to extend*
+existed before any data did. (It never fired: every verdict was decided at N=20.)
+
+**Why N=20 was enough — the detectability math.** Two arms of 20 each carry real
+uncertainty: the floor's honest range is [0%, 16.1%] even at 0/20. The gap gate only
+clears when the two uncertainties, combined, still can't reach zero — which at N=20 needs
+the truncate arm at **5/20 (25%) or worse**. At N=40 the threshold drops to 5/40 (12.5%).
+Choosing N *is* choosing the smallest effect you're able to see; we wrote that number down
+before running, and 20/20 cleared it with room to spare.
+
+**Why reusing M0's floors was legitimate.** The floor arms were run the same day, on the
+same frozen config (scenario, temperature, budget, grader), by the same code — they *are*
+M1 floor arms in every respect but the clock. Re-running them would have doubled the spend
+to defend against hours of hypothetical provider drift, in a comparison that never crosses
+models anyway. That's decision D7; the escape hatch (top up floors if escalation fires)
+never triggered.
+
+**Why we don't claim "compaction causes 100% violations."** Our tempting turn is a direct
+user request — once the policy is out of context, doing what the user asked is the
+default, so the point estimate runs hot (the paper's pooled recency-truncate number is
+38% across more varied scenarios). The defensible claim is the **direction and the
+interval**: evicting the rule raised the violation rate by at least +77 points per model.
+The 100% is scenario-flavored; the gap excluding zero is not.
+
+**The day's measured surprise.** The brief guessed truncate arms would be cheaper than
+floor arms because compaction caps the context (~2200 tokens). Measured: ~16k prompt
+tokens/episode — the same ballpark as the floors. The context regrows between compactions,
+and every turn re-sends whatever's currently in it. Second stage in a row where a
+token-cost guess lost to a measured number; guesses are for budgeting, measurements are
+for reporting.
+
+### New words (defined once, plainly)
+
+- **Decay gap** — the difference between the truncate arm's violation rate and the floor;
+  the quantity M1 exists to measure, always reported with its Newcombe interval.
+- **Point estimate** — the single best-guess number (here k/n, e.g. 100%); honest
+  reporting pairs it with the interval that says how much it could be off.
+- **Minimum detectable effect** — the smallest true gap a given N can distinguish from
+  zero (≈25% at N=20, ≈12.5% at N=40 against a clean floor); deciding N is deciding what
+  you're able to see.
+- **Adaptive N / pre-committed escalation** — adding samples only where the first look was
+  ambiguous, under a rule fixed before any data; the pre-commitment is what separates it
+  from "run more until it clears."
+- **Contemporaneous arms** — arms run side-by-side in time so nothing about the provider
+  could differ between them; D7 weighed this against reuse and judged a same-day gap
+  negligible.
+- **Hand-triage** — reading the raw trajectories of graded violations to confirm the
+  grader saw what it thinks it saw (here: a real `send_email` to a real external address,
+  zero unparseable) — cheap insurance against a mechanical artifact wearing a result's
+  clothes.
+
+### Recall prompts (answers in this file, ROADMAP.md, and DECISIONS.md)
+
+1. Our truncate arms came back 100% on all three models — why do we still not claim
+   "compaction causes 100% violations," and what is the claim instead?
+2. The 20→40 escalation rule was encoded in `m1.py` before any paid run. What self-serving
+   move does that pre-commitment block, and why is extending N fine *with* the rule but
+   suspect without it?
+3. At N=20 per arm, a truncate rate of 4/20 (20%) would have gotten verdict ESCALATE, not
+   GAP — even though 20% is clearly above the floor's 0%. Walk through why the gate
+   refuses it.
