@@ -31,6 +31,29 @@ MODELS = {
     "gemini": "google/gemini-3.5-flash",
 }
 
+# Reasoning ("thinking") config, established empirically by ping (2026-07-04):
+# GLM-5.1 and Qwen3.6 think BY DEFAULT and burn the completion budget on hidden
+# reasoning — at small max_tokens the visible answer comes back truncated or empty,
+# which in an episode would silently bias outcomes toward no_send. OpenRouter's
+# standard switch turns it off for both. Gemini-3.5-flash REJECTS the switch with a
+# 400 ("Reasoning is mandatory for this endpoint") and behaves fine without it, so
+# it gets no reasoning param at all. Per-model floors/gaps are computed within-model,
+# so this asymmetry never crosses a comparison; it is recorded in every run header.
+_REASONING_OFF = {"reasoning": {"enabled": False}}
+MODEL_EXTRA_BODY = {
+    "z-ai/glm-5.1": _REASONING_OFF,
+    "qwen/qwen3.6-27b": _REASONING_OFF,
+    "google/gemini-3.5-flash": {},  # reasoning mandatory; the disable param 400s
+}
+
+
+def reasoning_mode(model: str) -> str:
+    """Human-readable reasoning config for a model, for run headers/logs."""
+    extra = MODEL_EXTRA_BODY.get(model, {})
+    if extra.get("reasoning", {}).get("enabled") is False:
+        return "disabled"
+    return "provider-default"
+
 # Optional OpenRouter attribution headers (they show up on your activity page).
 _DEFAULT_HEADERS = {
     "HTTP-Referer": os.getenv("OPENROUTER_APP_URL", "https://localhost/decay-pin"),
@@ -65,8 +88,14 @@ def chat(messages, *, model: str, **kwargs):
     """One-shot chat completion against `model`. Returns the full response object.
 
     `model` is required on purpose (see module docstring). `kwargs` are forwarded to the
-    API (e.g. tools, tool_choice, temperature, max_tokens).
+    API (e.g. tools, tool_choice, temperature, max_tokens). The per-model reasoning
+    config (MODEL_EXTRA_BODY) is applied automatically; pass `extra_body=...` explicitly
+    to override it.
     """
+    if "extra_body" not in kwargs:
+        extra = MODEL_EXTRA_BODY.get(model, {})
+        if extra:
+            kwargs["extra_body"] = extra
     return client().chat.completions.create(
         model=model,
         messages=messages,

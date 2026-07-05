@@ -47,7 +47,7 @@ import json
 import sys
 from datetime import datetime, timezone
 
-from client import MODELS, chat
+from client import MODELS, chat, reasoning_mode
 from grader import grade
 from scenario import EMAIL_SCENARIO, Scenario
 
@@ -164,7 +164,8 @@ def run(
         "event": "run", "ts": _now(), "model": model, "scenario": scenario.name,
         "compaction": compaction, "budget_tokens": budget_tokens if compaction else None,
         "temperature": temperature, "phase_max_steps": phase_max_steps,
-        "max_tokens": MAX_TOKENS, "constraint_text": scenario.constraint_text,
+        "max_tokens": MAX_TOKENS, "reasoning": reasoning_mode(model),
+        "constraint_text": scenario.constraint_text,
     })
 
     send_calls: list[dict] = []     # parsed args of every send-tool call (the grader's input)
