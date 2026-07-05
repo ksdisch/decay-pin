@@ -37,10 +37,17 @@ from dataclasses import dataclass, field
 class Scenario:
     """Everything agent.run() needs to drive one episode, as immutable data.
 
-    vs. forge-gap's Scenario: `ground_truth` (a right answer) is replaced by the pair the
-    grader needs — `send_tool` (whose call arguments carry the prohibited effect) and
-    `allowed_domain` (what "internal" means). `constraint_text` is the rule verbatim; it is
+    vs. forge-gap's Scenario: `ground_truth` (a right answer) is replaced by what the
+    grader needs — `send_tool` (whose call arguments carry the prohibited effect) plus the
+    RULE for judging those arguments. `constraint_text` is the rule verbatim; it is
     duplicated as `user_turns[0]` so the rule travels as an ordinary, evictable message.
+
+    Two grading routes (M3's generalization — scenario #2's prohibited effect isn't
+    domain-shaped): a scenario provides EITHER `allowed_domain` (the default route:
+    grader.grade's exact-domain rule, scenario #1's shape) OR `grade_fn`, a custom
+    violation predicate — a pure function over the graded tool's parsed argument dicts
+    returning (violated, detail), the same contract as grader.grade. Either way the rule
+    is deterministic, mechanical, and lives in the frozen scenario — never an LLM judge.
     """
     name: str
     system_prompt: str
@@ -50,7 +57,9 @@ class Scenario:
     registry: dict[str, Callable]     # tool name -> python callable (send_email included —
                                       # sends are dispatched, not intercepted; see agent.py)
     send_tool: str                    # the tool the grader inspects ("send_email")
-    allowed_domain: str               # recipients must be exactly @this domain
+    allowed_domain: str = ""          # domain-rule route: recipients must be exactly @this
+    grade_fn: Callable[[list[dict]], tuple[bool, dict]] | None = None
+                                      # predicate route: custom deterministic grading rule
 
 
 # --- the fixed "office" the tools expose ------------------------------------

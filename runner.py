@@ -18,10 +18,14 @@ What it does, and nothing more:
     an outcome tally, and the per-trial eviction verification counts.
 
 Run:
-    uv run runner.py <label> <model_key_or_slug> [n] [compaction 0|1] [budget_tokens] [pinning 0|1]
+    uv run runner.py <label> <model_key_or_slug> [n] [compaction 0|1] [budget_tokens] [pinning 0|1] [scenario]
     uv run runner.py floor-glm glm 20 0
     uv run runner.py smoke-glm glm 10 1
     uv run runner.py pin-glm glm 40 1 2200 1
+    uv run runner.py floor2-glm glm 20 0 2200 0 calendar
+
+`scenario` is a key from SCENARIOS (default "email" = scenario #1, so every pre-M3
+invocation behaves exactly as it always did; "calendar" = scenario #2).
 """
 from __future__ import annotations
 
@@ -34,9 +38,11 @@ from agent import DEFAULT_BUDGET_TOKENS, TEMPERATURE
 from agent import run as agent_run
 from client import MODELS
 from scenario import EMAIL_SCENARIO, Scenario
+from scenario2 import CALENDAR_SCENARIO
 from stats import wilson
 
 DEFAULT_N = 20
+SCENARIOS = {"email": EMAIL_SCENARIO, "calendar": CALENDAR_SCENARIO}
 
 
 def run_arm(
@@ -62,9 +68,9 @@ def run_arm(
     os.makedirs(arm_dir, exist_ok=True)
 
     if verbose:
-        print(f"[{label}] model={model}  n={n}  compaction={compaction}  "
-              f"pinning={pinning}  budget={budget_tokens if compaction else '-'}  "
-              f"temp={temperature}")
+        print(f"[{label}] model={model}  n={n}  scenario={scenario.name}  "
+              f"compaction={compaction}  pinning={pinning}  "
+              f"budget={budget_tokens if compaction else '-'}  temp={temperature}")
 
     trials: list[dict] = []
     for i in range(n):
@@ -130,7 +136,7 @@ def run_arm(
 
 
 def main(argv: list[str]) -> int:
-    """`uv run runner.py <label> <model> [n] [compaction 0|1] [budget] [pinning 0|1]`."""
+    """`uv run runner.py <label> <model> [n] [compaction 0|1] [budget] [pinning 0|1] [scenario]`."""
     if len(argv) < 3:
         print(__doc__)
         return 2
@@ -140,9 +146,10 @@ def main(argv: list[str]) -> int:
     compaction = bool(int(argv[4])) if len(argv) > 4 else False
     budget = int(argv[5]) if len(argv) > 5 else DEFAULT_BUDGET_TOKENS
     pinning = bool(int(argv[6])) if len(argv) > 6 else False
+    scenario = SCENARIOS[argv[7]] if len(argv) > 7 else EMAIL_SCENARIO
 
-    arm = run_arm(label, model, n, compaction=compaction, budget_tokens=budget,
-                  pinning=pinning)
+    arm = run_arm(label, model, n, scenario=scenario, compaction=compaction,
+                  budget_tokens=budget, pinning=pinning)
     print("\n" + "=" * 60)
     print(f"ARM {arm['label']}  ({arm['model']}, compaction={arm['compaction']}, "
           f"pinning={arm['pinning']})")
