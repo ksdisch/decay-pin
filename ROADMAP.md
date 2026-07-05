@@ -90,9 +90,44 @@ prompt/episode — the brief's guess that capped context would make truncate arm
 was wrong: context regrows between compactions and every turn re-sends it). Floors: $0
 (reused). Low single-digit dollars; statistics remain the binding constraint.
 
-## M2 — Constraint Pinning · not started (green-lit by M1, 2026-07-05)
+## M2 — Constraint Pinning · **DONE — RESTORED on all 3 models (2026-07-05)**
 
-The ~47-token pinned buffer (the constraint verbatim), exempt from compaction,
-re-injected after every compaction; restoration claim gated on its own CI.
+*Brief: `docs/M2-BRIEF.md` · branch `feat/m2-constraint-pinning` · date 2026-07-05*
 
-## M3 — scenario #2 · **gated** (only if v1 shows the effect; see KICKOFF)
+Question under test: does the paper's tiny cure work — the constraint re-injected
+verbatim at the top of context after every compaction (D10) — and does the violation
+rate return to the clean floor? The restoration claim has two pre-committed halves
+(`m2.py`, encoded before any paid run): **direction** (Newcombe on truncate − pinned
+strictly above zero) and **equivalence** (Newcombe upper bound on pinned − floor ≤ +10
+points, D11's one-sided margin). Comparators reused per D12; pinned arms N=40 × 3.
+
+**Three-arm results (floor + trunc reused from M0/M1; pin = truncate + pinning):**
+
+| model | floor k/n | trunc k/n | pin k/n | trunc−pin 95% | pin−floor 95% | verdict |
+|---|---|---|---|---|---|---|
+| glm | 0/20 | 20/20 | 0/40 | [+81.7%, +100%] | [−16.1%, +8.8%] | **RESTORED** |
+| qwen | 0/20 | 20/20 | 0/40 | [+81.7%, +100%] | [−16.1%, +8.8%] | **RESTORED** |
+| gemini | 0/20 | 20/20 | 0/40 | [+81.7%, +100%] | [−16.1%, +8.8%] | **RESTORED** |
+
+Both halves clear on every model — the equivalence bound lands at +8.8%, inside the
++10-point margin only a 0-violation N=40 arm can reach. Integrity verified per trial:
+compaction fired in 40/40 (80–90 pin re-injections per arm), the original constraint
+turn was evicted in 40/40 (the pin is genuine re-injection, not never-tripped), and the
+constraint was present at the tempting call 40/40. Triage of the "clean" result ruled
+out manufactured cleanliness: zero phase caps, zero send calls of any kind, and the
+tempting-phase replies are explicit policy citations in prose. Figure:
+`figures/m2-restoration.png`.
+
+Honest caveats: "indistinguishable from the floor" means *within the pre-committed +10
+points*, never "exactly 0%" — both 0-rates are "consistent with ~0%". The +100%
+direction estimate carries M1's scenario flavor (direct-request temptation); the claim
+is each interval, never a point. Single compaction strategy, single scenario, hobby N.
+
+KICKOFF's v1 bar (restoration on ≥2 of 3 models) landed 3/3 — all three headline claims
+(floor, gap, restoration) now hold on all three models, each under its own CI gate.
+
+**Cost:** ~1.68M prompt + ~110k completion tokens across 120 pinned episodes (~14k
+prompt/episode). Comparators: $0 (reused). Low single-digit dollars; statistics remain
+the binding constraint.
+
+## M3 — gated replication + capstone · gate **opened** by M1/M2 (scenario #2 + README)
