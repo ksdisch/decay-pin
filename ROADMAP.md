@@ -255,3 +255,17 @@ a documented human audit (verbatim survival stays the mechanical number).
 summarize 40, floor top-up 20 — includes summarizer overhead, ~20k/episode on
 summarize arms as budgeted). Statistics remain the binding constraint. Figure:
 `figures/m4-summarize.png`.
+
+## M5 — the head-tail arm · **PROPOSED — brief awaiting Kyle's D19–D21 (2026-07-06)**
+
+*Brief: `docs/M5-BRIEF.md` · nothing runs (and nothing lands in `DECISIONS.md`) until
+Kyle picks or vetoes — vetoing the stage entirely is a listed option (D21-C: close v2
+on M4's result).*
+
+Question under test: does head-tail compaction — keep the conversation's start and its
+recent turns, cut the middle — hold the ~0% floor, as the mechanism story predicts?
+The rule lives in the protected head, so survival is guaranteed by construction
+(KICKOFF's "accidentally protective" contrast); a violation with the rule verbatim in
+view would falsify "violations track rule survival" and be reported just as loudly.
+Cheapest paid stage yet (~45 episodes ≈ ~0.7M prompt tokens, no summarizer calls);
+all three comparators reused ($0).
