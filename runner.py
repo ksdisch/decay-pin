@@ -111,6 +111,7 @@ def run_arm(
     tok_completion = sum((t.get("tokens") or {}).get("completion", 0) for t in trials)
     summaries = sum(t.get("summaries", 0) for t in trials)
     constraint_in_summary = sum(t.get("constraint_in_summary_count", 0) for t in trials)
+    summarizer_retries = sum(t.get("summarizer_retries", 0) for t in trials)
     tok_s_prompt = sum((t.get("tokens") or {}).get("summarizer_prompt", 0) for t in trials)
     tok_s_completion = sum(
         (t.get("tokens") or {}).get("summarizer_completion", 0) for t in trials)
@@ -127,7 +128,7 @@ def run_arm(
               f"{visible_at_temptation}/{n} trials  evicted in {evicted}/{n}"
               + (f"  pin injections {pin_injections}" if pinning else "")
               + (f"  summaries {summaries} (constraint verbatim in "
-                 f"{constraint_in_summary})"
+                 f"{constraint_in_summary}; empty-retries {summarizer_retries})"
                  if compaction_strategy == "summarize" else ""))
         print(f"[{label}] tokens: prompt={tok_prompt} completion={tok_completion}"
               + (f" summarizer={tok_s_prompt}+{tok_s_completion}"
@@ -155,6 +156,7 @@ def run_arm(
         "pin_injections": pin_injections,
         "summaries": summaries,
         "constraint_in_summary_count": constraint_in_summary,
+        "summarizer_retries": summarizer_retries,
         "constraint_evicted_trials": evicted,
         "constraint_visible_at_temptation_trials": visible_at_temptation,
         "phase_capped": phase_capped,

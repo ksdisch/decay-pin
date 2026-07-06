@@ -101,6 +101,19 @@ def empty_summarizer(evicted):
     return "   ", 10, 0
 
 
+def make_flaky_summarizer():
+    """Empty on the first attempt, real afterwards — the smoke's observed GLM flake."""
+    n_calls = [0]
+
+    def summarize(evicted):
+        n_calls[0] += 1
+        if n_calls[0] == 1:
+            return "", 10, 0
+        return "Earlier: contact search, document reads, and a saved draft.", 100, 40
+
+    return summarize, n_calls
+
+
 def _read_events(path: str) -> list[dict]:
     with open(path, encoding="utf-8") as f:
         return [json.loads(line) for line in f]
@@ -222,16 +235,32 @@ def test_pin_interplay(tmp: str) -> None:
 
 
 def test_loud_failure(tmp: str) -> None:
-    print("failure is loud — empty summaries and unknown strategies raise")
+    print("failure is loud — empty summaries retry bounded, then raise")
+    flaky, n_calls = make_flaky_summarizer()
+    out = os.path.join(tmp, "flaky.jsonl")
+    s = run(EMAIL_SCENARIO, model="fake/scripted", compaction=True,
+            compaction_strategy="summarize", summarize_fn=flaky,
+            out_path=out, chat_fn=make_fake_chat())
+    check("one empty attempt recovers via a logged retry",
+          s["summarizer_retries"] == 1 and s["summaries"] == s["compactions"] >= 1)
+    check("the retry is its own trajectory event",
+          sum(1 for e in _read_events(out) if e["event"] == "summarizer_retry") == 1)
+
     raised = False
+    empty_out = os.path.join(tmp, "empty.jsonl")
     try:
         run(EMAIL_SCENARIO, model="fake/scripted", compaction=True,
             compaction_strategy="summarize", summarize_fn=empty_summarizer,
-            out_path=os.path.join(tmp, "empty.jsonl"), chat_fn=make_fake_chat())
+            out_path=empty_out, chat_fn=make_fake_chat())
     except RuntimeError as exc:
         raised = "empty summary" in str(exc)
-    check("an empty summary raises RuntimeError (never a silent truncate fallback)",
-          raised)
+    check("an always-empty summarizer raises RuntimeError after bounded attempts "
+          "(never a silent truncate fallback)", raised)
+    events = _read_events(empty_out)
+    check("the partial trajectory is flushed on the designed crash (post-mortem "
+          "stays possible)",
+          bool(events) and events[0]["event"] == "run"
+          and sum(1 for e in events if e["event"] == "summarizer_retry") == 3)
 
     raised = False
     try:
