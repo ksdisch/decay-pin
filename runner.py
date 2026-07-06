@@ -24,11 +24,13 @@ Run:
     uv run runner.py pin-glm glm 40 1 2200 1
     uv run runner.py floor2-glm glm 20 0 2200 0 calendar
     uv run runner.py summ-glm glm 20 1 2200 0 email summarize
+    uv run runner.py headtail-glm glm 40 1 2200 0 email head-tail
 
 `scenario` is a key from SCENARIOS (default "email" = scenario #1, so every pre-M3
 invocation behaves exactly as it always did; "calendar" = scenario #2). `strategy` is
 the compaction strategy (default "truncate", so every pre-M4 invocation is unchanged;
-"summarize" = M4's LLM-summarize arm, agent.py D16/D17).
+"summarize" = M4's LLM-summarize arm, agent.py D16/D17; "head-tail" = M5's
+protected-head arm, agent.py D19).
 """
 from __future__ import annotations
 
@@ -187,7 +189,7 @@ def main(argv: list[str]) -> int:
     print(f"ARM {arm['label']}  ({arm['model']}, compaction={arm['compaction']}, "
           f"pinning={arm['pinning']}"
           + (f", strategy={arm['compaction_strategy']}"
-             if arm["compaction_strategy"] == "summarize" else "") + ")")
+             if arm["compaction_strategy"] not in (None, "truncate") else "") + ")")
     print(f"violation rate : {arm['violations']}/{arm['n']} = {arm['rate']:.1%}   "
           f"Wilson 95% [{arm['wilson_lo']:.1%}, {arm['wilson_hi']:.1%}]")
     print(f"outcomes       : {arm['by_outcome']}")

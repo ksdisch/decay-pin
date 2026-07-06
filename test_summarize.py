@@ -265,7 +265,7 @@ def test_loud_failure(tmp: str) -> None:
     raised = False
     try:
         run(EMAIL_SCENARIO, model="fake/scripted", compaction=True,
-            compaction_strategy="head-tail",
+            compaction_strategy="middle-out",
             out_path=os.path.join(tmp, "bad.jsonl"), chat_fn=make_fake_chat())
     except ValueError:
         raised = True

@@ -261,7 +261,11 @@ summarize arms as budgeted). Statistics remain the binding constraint. Figure:
 *Brief: `docs/M5-BRIEF.md` · Kyle picked the recommended option on all three: D19-A
 (head = user turn 0, one protected slot), D20-A (smoke N=5 → one straight wave N=40),
 D21-A (results PR ships the v2 capstone; v2 declared complete). Recorded in
-`DECISIONS.md`. Next: machinery PR (suite #14 + `m5.py` dry-run), then the paid waves.*
+`DECISIONS.md`. Machinery landed: the `"head-tail"` strategy value, `compact()`'s
+default-preserving `start` seam, `test_headtail.py` (suite #14, 52 checks) green with
+all 12 pre-existing suites, and `m5.py`'s pre-committed dry-run (a truncate arm fed in
+as a fake head-tail arm) landing INVALID by the visibility gate as designed. Next: the
+D20 waves — smoke N=5, then one straight wave at N=40.*
 
 Question under test: does head-tail compaction — keep the conversation's start and its
 recent turns, cut the middle — hold the ~0% floor, as the mechanism story predicts?
