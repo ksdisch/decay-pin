@@ -370,3 +370,102 @@ reporting — and eventually, measurements become the budget.
 3. `m3.py` imports m1's and m2's verdict functions instead of re-implementing them, and
    it was dry-run on scenario #1's real data before any paid scenario #2 run. What
    does each of those two choices protect against?
+
+---
+
+## M4 — the LLM-summarize arm, v2 (2026-07-06)
+
+### The teaching note
+
+**What M4 measured.** v1's compaction was recency-truncate — old messages deleted
+outright — which guarantees the rule gets evicted. Real frameworks (Claude Code,
+LangChain) don't truncate; they **summarize**: at the context budget, a model writes a
+summary of the old messages and the conversation continues from that. M4 ran the same
+experiment with that strategy, and the deep structural change is this: under
+summarization, *whether the rule survives compaction is no longer up to us*. The
+summarizer decides. So the check v1 used as an integrity gate ("constraint absent at
+the tempting call, n/n, or the arm is invalid") flips into an **instrument** — survival
+becomes something you measure, not something you require. Getting that flip right —
+in the gates, in `m4.py`, in what counts as INVALID — was most of the design work.
+
+**The result, and how to say it honestly.** Floor 0/40; summarize 2/40 (5.0%);
+truncate 20/20. The interval on (summarize − floor) is [−4.5%, +16.5%] — it includes
+zero, so the pre-committed verdict is **STRATEGY-NULL**: at this scale we do not claim
+the production strategy decays. Not "we proved it's safe" — a **null result** means
+the data couldn't tell the rate apart from the floor, and the same data are also
+consistent with a true rate as high as ~16%. Meanwhile the descriptive comparison says
+summarize sits 75–99 points *below* truncate's ceiling: the strategy choice is
+enormous.
+
+**The mechanism (the best part).** Verbatim string search finds the rule in 0/40
+summarize contexts at the tempting call — by v1's ruler, the rule was "gone" in every
+trial, yet violations were 2/40, not 40/40. Hand-reading all 65 saved summaries
+explains it: the summarizer carried the rule through as a **paraphrase** ("Policy:
+outbound email restricted to @acme-corp.com…") in 38 of 40 final summaries, and those
+38 trials produced zero violations. The 2 trials whose final summary lost the policy
+are exactly the 2 violations — and both losses happened in a **second-generation
+rolling summary** (a summary of a summary; the copy degrades with each generation,
+like a photocopy of a photocopy). So governance decay didn't vanish under the
+production strategy — it moved into the summarizer's judgment about what's worth
+keeping, and it reappeared precisely when that judgment dropped the rule. That is the
+paper's constraint-survives/constraint-dropped split, reproduced one level down.
+
+**Why the summarizer prompt was frozen in the brief.** The whole result hinges on what
+the summarizer was asked to do. A prompt that says "preserve policies" builds the pin
+into the compactor (guaranteed null); one that says "keep only task facts" builds the
+effect in (guaranteed gap). So the prompt was written *neutral* — never mentioning
+rules at all — and committed verbatim in `docs/M4-BRIEF.md` before any paid call, with
+a named honesty rule: retuning it after seeing output is **prompt-shopping**, the
+summarize-arm cousin of scenario-shopping. When the smoke's summaries turned out
+policy-heavy, the design proceeded unchanged — that outcome IS the finding.
+
+**What the smoke caught (and what it wasn't allowed to change).** The first paid trial
+died instantly: GLM returned an HTTP-200 with *empty* content on a summarizer call —
+a failure shape the client's retry policy can't see, because nothing errored. The
+loud-failure design worked (the trial refused to fall back to truncation silently),
+the fix was plumbing (retry empty responses up to 3 times, each logged as its own
+trajectory event), and the frozen prompt was untouched. That's the machinery smoke
+doing exactly its pre-committed job: it may stop the stage on plumbing, never on
+preview of the result.
+
+**Why the pin wave never ran.** D18 gated the pin-summarize arm (N=40) on the gap
+appearing. It didn't, so the wave was skipped as **vacuous** — with no decay, "the pin
+restores the floor" has nothing to restore, and 0.8M tokens measuring nothing proves
+nothing. A pre-committed skip, stated plainly, is the honest move; quietly running it
+anyway and reporting 0/40 would have manufactured an impressive-looking but empty cell.
+
+### New words (defined once, plainly)
+
+- **LLM-summarize compaction** — hitting the context budget and replacing the old
+  messages with a model-written summary of them instead of deleting them; what
+  production agent frameworks actually do.
+- **Rolling summary** — each new compaction folds the previous summary into the next
+  one, so one evolving message carries the whole past. Emerges here from placement
+  alone: the old summary sits at index 1, the oldest evictable slot, so it is always
+  first into the next summary's source material.
+- **Paraphrase survival** — the rule's *content* outliving compaction in reworded form.
+  Invisible to verbatim string search (the mechanical check), so it was counted by a
+  documented hand-read of every summary — a human audit, never an LLM judge.
+- **Prompt-shopping** — retuning a prompt after seeing outputs until the result you
+  wanted appears; researcher degrees of freedom, summarizer edition. Foreclosed by
+  freezing the prompt verbatim in the brief before any paid call.
+- **Null result** — the interval on the difference includes zero: the data cannot
+  distinguish the arm from the floor. Reported as "no claim," never as "proved equal";
+  the honest phrasing carries the upper bound (~16%) with it.
+- **Ceiling effect** — a measurement pinned at the top of its scale (truncate's 20/20),
+  so any comparison against it can only show differences from below.
+- **Vacuous test** — a test whose premise failed, so its answer means nothing (pinning
+  when there's no decay). D18 pre-committed skipping it and saying so.
+
+### Recall prompts (answers in this file, ROADMAP.md, and DECISIONS.md)
+
+1. Under truncation, "constraint absent at the tempting call n/n" was an integrity
+   gate; under summarization it can't be. Why not — and what did that check become
+   instead?
+2. The verbatim string check said the rule was gone in 40/40 summarize trials, yet
+   violations were only 2/40. What explains the difference, how was it counted
+   honestly without an LLM judge, and what happened in exactly the 2 violating trials?
+3. The summarizer prompt was frozen verbatim in the brief before any paid call, and
+   the smoke was forbidden from changing the design. Which failure mode does each of
+   those two pre-commitments block, and what distinguishes the empty-summary retry fix
+   (allowed) from a prompt tweak (not allowed)?
