@@ -18,14 +18,17 @@ What it does, and nothing more:
     an outcome tally, and the per-trial eviction verification counts.
 
 Run:
-    uv run runner.py <label> <model_key_or_slug> [n] [compaction 0|1] [budget_tokens] [pinning 0|1] [scenario]
+    uv run runner.py <label> <model_key_or_slug> [n] [compaction 0|1] [budget_tokens] [pinning 0|1] [scenario] [strategy]
     uv run runner.py floor-glm glm 20 0
     uv run runner.py smoke-glm glm 10 1
     uv run runner.py pin-glm glm 40 1 2200 1
     uv run runner.py floor2-glm glm 20 0 2200 0 calendar
+    uv run runner.py summ-glm glm 20 1 2200 0 email summarize
 
 `scenario` is a key from SCENARIOS (default "email" = scenario #1, so every pre-M3
-invocation behaves exactly as it always did; "calendar" = scenario #2).
+invocation behaves exactly as it always did; "calendar" = scenario #2). `strategy` is
+the compaction strategy (default "truncate", so every pre-M4 invocation is unchanged;
+"summarize" = M4's LLM-summarize arm, agent.py D16/D17).
 """
 from __future__ import annotations
 
@@ -55,6 +58,7 @@ def run_arm(
     pinning: bool = False,
     budget_tokens: int = DEFAULT_BUDGET_TOKENS,
     temperature: float = TEMPERATURE,
+    compaction_strategy: str = "truncate",
     run_fn=agent_run,
     runs_dir: str = "runs",
     verbose: bool = True,
@@ -70,14 +74,22 @@ def run_arm(
     if verbose:
         print(f"[{label}] model={model}  n={n}  scenario={scenario.name}  "
               f"compaction={compaction}  pinning={pinning}  "
-              f"budget={budget_tokens if compaction else '-'}  temp={temperature}")
+              f"budget={budget_tokens if compaction else '-'}  temp={temperature}"
+              + (f"  strategy={compaction_strategy}"
+                 if compaction_strategy != "truncate" else ""))
+
+    # The strategy kwarg is only forwarded when it isn't the default, so every run_fn
+    # fake written before M4 (they don't accept the kwarg) keeps working unchanged.
+    extra_kwargs = {}
+    if compaction_strategy != "truncate":
+        extra_kwargs["compaction_strategy"] = compaction_strategy
 
     trials: list[dict] = []
     for i in range(n):
         out_path = os.path.join(arm_dir, f"trial-{i:02d}.jsonl")
         summary = run_fn(scenario=scenario, model=model, compaction=compaction,
                          pinning=pinning, budget_tokens=budget_tokens,
-                         temperature=temperature, out_path=out_path)
+                         temperature=temperature, out_path=out_path, **extra_kwargs)
         trials.append(summary)
         if verbose:
             mark = "VIOL" if summary["violated"] else "ok  "
@@ -97,6 +109,11 @@ def run_arm(
     phase_capped = sum(t.get("phase_capped", 0) for t in trials)
     tok_prompt = sum((t.get("tokens") or {}).get("prompt", 0) for t in trials)
     tok_completion = sum((t.get("tokens") or {}).get("completion", 0) for t in trials)
+    summaries = sum(t.get("summaries", 0) for t in trials)
+    constraint_in_summary = sum(t.get("constraint_in_summary_count", 0) for t in trials)
+    tok_s_prompt = sum((t.get("tokens") or {}).get("summarizer_prompt", 0) for t in trials)
+    tok_s_completion = sum(
+        (t.get("tokens") or {}).get("summarizer_completion", 0) for t in trials)
 
     results_path = os.path.join(arm_dir, "results.jsonl")
     with open(results_path, "w", encoding="utf-8") as f:
@@ -108,16 +125,26 @@ def run_arm(
               f"Wilson 95% [{lo:.1%}, {hi:.1%}]")
         print(f"[{label}] outcomes={by_outcome}  constraint@temptation visible in "
               f"{visible_at_temptation}/{n} trials  evicted in {evicted}/{n}"
-              + (f"  pin injections {pin_injections}" if pinning else ""))
-        print(f"[{label}] tokens: prompt={tok_prompt} completion={tok_completion}   "
-              f"results -> {results_path}")
+              + (f"  pin injections {pin_injections}" if pinning else "")
+              + (f"  summaries {summaries} (constraint verbatim in "
+                 f"{constraint_in_summary})"
+                 if compaction_strategy == "summarize" else ""))
+        print(f"[{label}] tokens: prompt={tok_prompt} completion={tok_completion}"
+              + (f" summarizer={tok_s_prompt}+{tok_s_completion}"
+                 if compaction_strategy == "summarize" else "")
+              + f"   results -> {results_path}")
 
+    tokens = {"prompt": tok_prompt, "completion": tok_completion}
+    if compaction_strategy == "summarize":
+        tokens["summarizer_prompt"] = tok_s_prompt
+        tokens["summarizer_completion"] = tok_s_completion
     return {
         "label": label,
         "model": model,
         "n": n,
         "compaction": compaction,
         "pinning": pinning,
+        "compaction_strategy": compaction_strategy if compaction else None,
         "budget_tokens": budget_tokens if compaction else None,
         "temperature": temperature,
         "violations": k,
@@ -126,17 +153,19 @@ def run_arm(
         "wilson_hi": hi,
         "by_outcome": by_outcome,
         "pin_injections": pin_injections,
+        "summaries": summaries,
+        "constraint_in_summary_count": constraint_in_summary,
         "constraint_evicted_trials": evicted,
         "constraint_visible_at_temptation_trials": visible_at_temptation,
         "phase_capped": phase_capped,
-        "tokens": {"prompt": tok_prompt, "completion": tok_completion},
+        "tokens": tokens,
         "results_path": results_path,
         "trials": trials,
     }
 
 
 def main(argv: list[str]) -> int:
-    """`uv run runner.py <label> <model> [n] [compaction 0|1] [budget] [pinning 0|1] [scenario]`."""
+    """`uv run runner.py <label> <model> [n] [compaction 0|1] [budget] [pinning 0|1] [scenario] [strategy]`."""
     if len(argv) < 3:
         print(__doc__)
         return 2
@@ -147,12 +176,16 @@ def main(argv: list[str]) -> int:
     budget = int(argv[5]) if len(argv) > 5 else DEFAULT_BUDGET_TOKENS
     pinning = bool(int(argv[6])) if len(argv) > 6 else False
     scenario = SCENARIOS[argv[7]] if len(argv) > 7 else EMAIL_SCENARIO
+    strategy = argv[8] if len(argv) > 8 else "truncate"
 
     arm = run_arm(label, model, n, scenario=scenario, compaction=compaction,
-                  budget_tokens=budget, pinning=pinning)
+                  budget_tokens=budget, pinning=pinning,
+                  compaction_strategy=strategy)
     print("\n" + "=" * 60)
     print(f"ARM {arm['label']}  ({arm['model']}, compaction={arm['compaction']}, "
-          f"pinning={arm['pinning']})")
+          f"pinning={arm['pinning']}"
+          + (f", strategy={arm['compaction_strategy']}"
+             if arm["compaction_strategy"] == "summarize" else "") + ")")
     print(f"violation rate : {arm['violations']}/{arm['n']} = {arm['rate']:.1%}   "
           f"Wilson 95% [{arm['wilson_lo']:.1%}, {arm['wilson_hi']:.1%}]")
     print(f"outcomes       : {arm['by_outcome']}")
