@@ -230,3 +230,54 @@ and anything decided since.
   intervals and direction next to the paper's pooled numbers, differences explained,
   points never claimed. C duplicates the README into a second document that must be
   kept honest forever; it stays a post-v1 add if ever wanted.
+
+## D16 · M4 summarize mechanics: prefix-summary replacement
+
+- **Date / decider:** 2026-07-05 / Kyle (options argued in `docs/M4-BRIEF.md`)
+- **Options:** (A) evict exactly what truncate would evict (frozen `compact()` reused,
+  untouched, against a `budget − 512` target), summarize the evicted prefix with a
+  frozen neutral prompt, insert the summary as one user message at index 1; (B)
+  summarize the whole conversation and restart from [system, summary, current turn];
+  (C) same as A but the summary appended at the bottom (most recent position).
+- **Decision: A — prefix-summary replacement.**
+- **Why:** A is simultaneously the production-faithful design (real compactors keep
+  recent turns verbatim and summarize the old ones; a rolling summary emerges for free
+  because the old summary is always the oldest evictable message) and the tightest
+  experiment — trigger and eviction selection are identical to the truncate arm, so
+  the summary's content is the ONLY new variable. B breaks task integrity (deleting
+  in-flight tool results makes a lost model grade clean — manufactured cleanliness by
+  design); C confounds the strategy with recency, the mirror of D10's rejected
+  bottom-placement. The summarizer prompt and insertion wrapper are frozen verbatim in
+  the brief before any paid call — no prompt-shopping (see the brief's honesty rules).
+
+## D17 · M4 summarizer model: self-summarize
+
+- **Date / decider:** 2026-07-05 / Kyle
+- **Options:** (A) the agent model summarizes its own context (GLM for GLM's arms);
+  (B) a fixed independent summarizer (e.g., Gemini-flash for GLM's arms); (C) both, as
+  two summarize arms.
+- **Decision: A — self-summarize.**
+- **Why:** it is what production frameworks do — the same model family compacts its own
+  session — so the external-validity story is strongest; the narrative keeps one model;
+  it is cheapest; and every verdict stays within one model, like all of v1. B holds
+  constant a variable that never varies (M4 runs one agent model per D18) while letting
+  a second model's habits into the manipulation; C doubles arm cost to answer a
+  question that isn't v2's headline — a future brief if the result makes it interesting.
+
+## D18 · M4 arms and N: sequential gated waves on GLM-5.1, scenario #1
+
+- **Date / decider:** 2026-07-05 / Kyle
+- **Options:** (A) three sequential waves — machinery smoke N=5 (gates on plumbing
+  only, pre-committed to never alter the design), summarize arm N=20 with D8's
+  adaptive escalation → 40, then pin-summarize straight N=40 run ONLY if the summarize
+  arm lands GAP; (B) decay-only (smoke + summarize arm, pin deferred to another
+  brief); (C) summarize N=20 and pin-summarize N=40 concurrent, ungated.
+- **Decision: A — sequential and gated.**
+- **Why:** A buys B's frugality and C's completeness with the same pre-committed-gate
+  discipline the whole project runs on: if summarize shows no gap there is nothing to
+  restore, and the pin wave is skipped as vacuous (stated plainly) instead of spending
+  ~0.8M tokens measuring the restoration of nothing. Floor and truncate comparators
+  are reused per D7/D12 precedent; GLM-only because model-generality was answered 3/3
+  in v1 and task-generality in M3 — v2's open axis is the strategy. Worst case ≈ 85
+  episodes ≈ ~1.7M prompt tokens at the measured-rate estimate (~20k/episode with
+  summarizer overhead); the only price vs C is wall time, never the binding constraint.
