@@ -256,11 +256,12 @@ summarize 40, floor top-up 20 — includes summarizer overhead, ~20k/episode on
 summarize arms as budgeted). Statistics remain the binding constraint. Figure:
 `figures/m4-summarize.png`.
 
-## M5 — the head-tail arm · **PROPOSED — brief awaiting Kyle's D19–D21 (2026-07-06)**
+## M5 — the head-tail arm · **IN PROGRESS — D19–D21 decided (2026-07-06)**
 
-*Brief: `docs/M5-BRIEF.md` · nothing runs (and nothing lands in `DECISIONS.md`) until
-Kyle picks or vetoes — vetoing the stage entirely is a listed option (D21-C: close v2
-on M4's result).*
+*Brief: `docs/M5-BRIEF.md` · Kyle picked the recommended option on all three: D19-A
+(head = user turn 0, one protected slot), D20-A (smoke N=5 → one straight wave N=40),
+D21-A (results PR ships the v2 capstone; v2 declared complete). Recorded in
+`DECISIONS.md`. Next: machinery PR (suite #14 + `m5.py` dry-run), then the paid waves.*
 
 Question under test: does head-tail compaction — keep the conversation's start and its
 recent turns, cut the middle — hold the ~0% floor, as the mechanism story predicts?

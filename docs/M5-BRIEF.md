@@ -1,10 +1,10 @@
 # M5 Start-of-Stage Brief — the head-tail arm (v2's contrast strategy)
 
-*Written 2026-07-06 · status: **D19–D21 AWAITING KYLE** — options and recommendations
-below; no decision is recorded in `DECISIONS.md` and no paid token is spent until he
-picks (or vetoes the stage — that is a listed option, see D21). Source of truth for
-scope: `KICKOFF.md`, whose deferred list names head-tail as the "accidentally
-protective" contrast.*
+*Written 2026-07-06 · status: **D19–D21 DECIDED (2026-07-06)** — Kyle picked the
+recommended option on all three (D19-A one-message head, D20-A smoke → straight N=40,
+D21-A capstone closes v2); recorded in `DECISIONS.md`. Options and recommendations
+below preserved as argued. Source of truth for scope: `KICKOFF.md`, whose deferred
+list names head-tail as the "accidentally protective" contrast.*
 
 ## What M5 is, in plain terms
 
