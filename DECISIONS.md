@@ -281,3 +281,54 @@ and anything decided since.
   in v1 and task-generality in M3 — v2's open axis is the strategy. Worst case ≈ 85
   episodes ≈ ~1.7M prompt tokens at the measured-rate estimate (~20k/episode with
   summarizer overhead); the only price vs C is wall time, never the binding constraint.
+
+## D19 · M5 head-tail mechanics: head = the first non-system message (user turn 0)
+
+- **Date / decider:** 2026-07-06 / Kyle (options argued in `docs/M5-BRIEF.md`)
+- **Options:** (A) head = exactly one message — the first non-system message, which in
+  scenario #1 is the constraint turn (D3); same oldest-first eviction below it, no
+  omission marker; (B) head = a token allowance (e.g., the first ~15% of the budget);
+  (C) head = system prompt only — not a real option, that is the truncate arm by
+  definition.
+- **Decision: A — the one-message head.**
+- **Why:** one message moved from "evictable" to "protected" is the entire manipulation
+  — against the truncate arm the ONLY change is that one protected slot, which is the
+  tightest possible experiment and exactly the "accidental" in accidentally-protective
+  (real frameworks keep the opening turns because task setup lives there; ours happens
+  to hold the rule). B adds an arbitrary knob (the percentage) that must be frozen and
+  defended forever, on top of a fuzzy chars/4 boundary — and any sane quota still
+  protects user turn 0, so it buys different machinery for the same measured contrast.
+
+## D20 · M5 waves and N: smoke N=5, then one straight wave at N=40
+
+- **Date / decider:** 2026-07-06 / Kyle
+- **Options:** (A) machinery smoke N=5 (gates on plumbing only, pre-committed to never
+  alter the design), then the head-tail arm as one straight wave at N=40; (B) smoke,
+  then D8-adaptive N=20 → 40 (M4's shape verbatim); (C) no smoke, straight to N=40.
+- **Decision: A — smoke, then one pre-committed wave at N=40.**
+- **Why:** the expected headline is an equivalence claim, and D11 requires 40 clean
+  trials for equivalence — an N=20 interim look would almost certainly escalate anyway
+  (0/20 vs 0/40 straddles zero under Newcombe), so B is A with an extra peek: same
+  cost, one more researcher-degree-of-freedom to defend. C saves ~5 episodes but drops
+  the smoke that caught a real crash in M4 (GLM's empty-content shape) before it could
+  poison an arm. Total ≈ 45 episodes ≈ ~0.7M prompt tokens — the cheapest paid stage
+  yet; comparators (pooled floor, truncate, summarize) reused per D7/D12 ($0).
+
+## D21 · M5 closes v2: results PR ships the capstone, v2 declared complete
+
+- **Date / decider:** 2026-07-06 / Kyle
+- **Options:** (A) the results PR ships the v2 capstone — four-bar strategy figure
+  (floor / head-tail / summarize / truncate), README three-strategy table + paper
+  head-tail row, spine close-out — and v2 is declared complete; (B) results land
+  minimal (ROADMAP row only), v2 stays open in case a summarizer-identity arm (D17-C)
+  joins first; (C) veto the stage — no M5, close v2 now on M4's STRATEGY-NULL.
+- **Decision: A — capstone in the results PR; v2 complete.**
+- **Why:** v2's question — does the compaction strategy matter? — gets its complete,
+  legible, three-point answer (eviction guaranteed → ceiling; survival usually →
+  near-floor; survival guaranteed → floor, or the loud surprise if not), and the repo
+  returns to a finished, defensible artifact at a natural stopping place. B leaves the
+  repo mid-v2 indefinitely for a ~30-minute figure redraw that may never be needed —
+  "one more arm first" is how scope creeps. C was a real option (zero further spend),
+  but it leaves KICKOFF's named contrast unmeasured and the mechanism story untested
+  at its cheapest testable point. Anything further (D17-C summarizer identity) is a
+  new brief opening new scope, not v2's continuation.

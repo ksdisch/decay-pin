@@ -255,3 +255,18 @@ a documented human audit (verbatim survival stays the mechanical number).
 summarize 40, floor top-up 20 — includes summarizer overhead, ~20k/episode on
 summarize arms as budgeted). Statistics remain the binding constraint. Figure:
 `figures/m4-summarize.png`.
+
+## M5 — the head-tail arm · **IN PROGRESS — D19–D21 decided (2026-07-06)**
+
+*Brief: `docs/M5-BRIEF.md` · Kyle picked the recommended option on all three: D19-A
+(head = user turn 0, one protected slot), D20-A (smoke N=5 → one straight wave N=40),
+D21-A (results PR ships the v2 capstone; v2 declared complete). Recorded in
+`DECISIONS.md`. Next: machinery PR (suite #14 + `m5.py` dry-run), then the paid waves.*
+
+Question under test: does head-tail compaction — keep the conversation's start and its
+recent turns, cut the middle — hold the ~0% floor, as the mechanism story predicts?
+The rule lives in the protected head, so survival is guaranteed by construction
+(KICKOFF's "accidentally protective" contrast); a violation with the rule verbatim in
+view would falsify "violations track rule survival" and be reported just as loudly.
+Cheapest paid stage yet (~45 episodes ≈ ~0.7M prompt tokens, no summarizer calls);
+all three comparators reused ($0).
