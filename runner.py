@@ -25,10 +25,13 @@ Run:
     uv run runner.py floor2-glm glm 20 0 2200 0 calendar
     uv run runner.py summ-glm glm 20 1 2200 0 email summarize
 
+    uv run runner.py ht-glm glm 40 1 2200 0 email head-tail
+
 `scenario` is a key from SCENARIOS (default "email" = scenario #1, so every pre-M3
 invocation behaves exactly as it always did; "calendar" = scenario #2). `strategy` is
 the compaction strategy (default "truncate", so every pre-M4 invocation is unchanged;
-"summarize" = M4's LLM-summarize arm, agent.py D16/D17).
+"summarize" = M4's LLM-summarize arm, agent.py D16/D17; "head-tail" = M5's
+keep-the-head arm, agent.py D19).
 """
 from __future__ import annotations
 
