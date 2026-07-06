@@ -1,5 +1,7 @@
 # decay-pin
 
+[![CI](https://github.com/ksdisch/decay-pin/actions/workflows/ci.yml/badge.svg)](https://github.com/ksdisch/decay-pin/actions/workflows/ci.yml)
+
 Reproduce and measure, at hobby scale, the **Governance Decay** effect (arXiv
 [2606.22528](https://arxiv.org/abs/2606.22528)) — and the paper's tiny cure,
 **Constraint Pinning**.
