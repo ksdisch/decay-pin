@@ -152,6 +152,13 @@ SUMMARIZER_PROMPT = (
 # into the following summary (the emergent rolling summary).
 SUMMARY_HEADER = "[Conversation summary — earlier messages were compacted to save space]"
 
+# Reliability hygiene, not part of the experiment (the M4 smoke caught GLM returning an
+# HTTP-200 with EMPTY content — the one failure shape the client's max_retries can't
+# see). Each empty attempt is logged as its own `summarizer_retry` event and counted in
+# the run summary; after this many attempts the trial still dies loudly — NEVER a
+# silent fallback to truncation.
+SUMMARIZER_MAX_ATTEMPTS = 3
+
 
 def render_excerpt(evicted: list[dict]) -> str:
     """Render evicted messages as a plain-text transcript excerpt for the summarizer.
@@ -263,6 +270,11 @@ def run(
     def log(rec: dict) -> None:
         records.append(rec)
 
+    def flush() -> None:
+        with open(out_path, "w", encoding="utf-8") as f:
+            for rec in records:
+                f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+
     log({
         "event": "run", "ts": _now(), "model": model, "scenario": scenario.name,
         "compaction": compaction, "pinning": pinning,
@@ -285,6 +297,7 @@ def run(
     summaries = 0                    # summarize strategy: one per compaction (M4 gate)
     constraint_in_summary_count = 0  # verbatim survival INTO a summary, by string search
     summarizer_prompt_tokens = summarizer_completion_tokens = 0
+    summarizer_retries = 0           # empty-content retries (logged, honest, bounded)
 
     for phase, turn in enumerate(scenario.user_turns):
         messages.append({"role": "user", "content": turn})
@@ -315,13 +328,25 @@ def run(
                     constraint_ever_evicted = constraint_ever_evicted or dropped_constraint
                     extra: dict = {}
                     if compaction_strategy == "summarize":
-                        summary_text, s_ptok, s_ctok = summarize_fn(evicted)
-                        summary_text = (summary_text or "").strip()
+                        summary_text, s_ptok, s_ctok = "", 0, 0
+                        for attempt in range(1, SUMMARIZER_MAX_ATTEMPTS + 1):
+                            text, p_tok, c_tok = summarize_fn(evicted)
+                            s_ptok += p_tok
+                            s_ctok += c_tok
+                            summary_text = (text or "").strip()
+                            if summary_text:
+                                break
+                            summarizer_retries += 1
+                            log({"event": "summarizer_retry", "phase": phase,
+                                 "step": step, "attempt": attempt,
+                                 "reason": "empty summary"})
                         if not summary_text:
+                            flush()  # persist the partial trajectory for post-mortem
                             raise RuntimeError(
-                                "summarizer returned an empty summary — this trial is "
-                                "INVALID (M4 brief: loud failure, never a silent "
-                                "fallback to truncation)")
+                                f"summarizer returned an empty summary "
+                                f"{SUMMARIZER_MAX_ATTEMPTS} times — this trial is "
+                                f"INVALID (M4 brief: loud failure, never a silent "
+                                f"fallback to truncation)")
                         messages.insert(1, {"role": "user",
                                             "content": SUMMARY_HEADER + "\n" + summary_text})
                         summaries += 1
@@ -462,13 +487,11 @@ def run(
          "pin_injections": pin_injections,
          "summaries": summaries,
          "constraint_in_summary_count": constraint_in_summary_count,
+         "summarizer_retries": summarizer_retries,
          "constraint_ever_evicted": constraint_ever_evicted,
          "constraint_present_at_temptation": constraint_present_at_temptation})
     log({"event": "grade", "violated": violated, **detail})
-
-    with open(out_path, "w", encoding="utf-8") as f:
-        for rec in records:
-            f.write(json.dumps(rec, ensure_ascii=False) + "\n")
+    flush()
 
     tokens = {"prompt": prompt_tokens, "completion": completion_tokens}
     if compaction and compaction_strategy == "summarize":
@@ -497,6 +520,7 @@ def run(
         "pin_injections": pin_injections,
         "summaries": summaries,
         "constraint_in_summary_count": constraint_in_summary_count,
+        "summarizer_retries": summarizer_retries,
         "phase_capped": phase_capped,
         "tokens": tokens,
         "trajectory": out_path,
