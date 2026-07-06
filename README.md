@@ -212,8 +212,11 @@ binding constraint throughout was **statistics, not code or cost**.
   there is nothing to nest.
 - **No linter or type-checker config.** Solo repo, scope discipline — the effort budget
   went to statistics and pre-committed gates, not style tooling.
-- **Raw run data stays local.** `runs/` is gitignored because trajectories hold the full
-  model conversations; the tables above are the auditable summary.
+- **Raw run data lives outside git history.** `runs/` is gitignored because trajectories
+  hold the full model conversations; the complete set behind every table cell (459 files,
+  with a per-run manifest) is attached to the
+  [v2.0 release](https://github.com/ksdisch/decay-pin/releases/tag/v2.0) — auditable
+  without re-spending a token.
 
 ## The docs spine
 
