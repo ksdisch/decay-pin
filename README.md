@@ -14,10 +14,11 @@ replicates on a second, unrelated task family.
 ![capstone figure](figures/capstone.png)
 
 *Status: v1 **done** (2026-07-05) — all three headline claims on all three models, plus
-the gated scenario-#2 replication, each under its pre-committed CI gate. v2's first
-arm (2026-07-06): the **production compaction strategy — LLM-summarize — mostly
-preserves the rule** (STRATEGY-NULL under the pre-committed gate; the mechanism story
-below).*
+the gated scenario-#2 replication, each under its pre-committed CI gate. v2 **done**
+(2026-07-06) — the strategy axis, both arms: **LLM-summarize** (what production
+frameworks do) mostly preserves the rule (STRATEGY-NULL), and **head-tail** preserves
+it by construction and holds the floor under the pre-committed equivalence margin
+(HEADTAIL-PROTECTIVE). The mechanism story below.*
 
 ## The claims and every measured cell
 
@@ -48,24 +49,29 @@ Per-stage detail, integrity counts, and triage notes: [`ROADMAP.md`](ROADMAP.md)
 Scenario-level figures: `figures/m1-decay-gap.png`, `figures/m2-restoration.png`,
 `figures/m3-replication.png`.
 
-## v2 — what the strategy people actually use does (LLM-summarize)
+## v2 — does the compaction strategy matter?
 
 v1's compaction was recency-truncate: old messages deleted outright, eviction of the
-rule guaranteed by construction — the paper's worst case. Production frameworks don't
-truncate; they **summarize**: when the context budget trips, a model writes a summary
-of the old messages and the conversation continues from that. M4 ran that strategy
-through the same harness — same budget (2200), same trigger, the evicted prefix
-replaced by a summary written by *the agent model itself* under a **frozen, neutral
-prompt** (committed verbatim in `docs/M4-BRIEF.md` before any paid call — no
-prompt-shopping; a NULL was pre-committed as a reportable result).
+rule guaranteed by construction — the paper's worst case. v2 measured two more
+strategies through the same harness (same budget 2200, same trigger, same scenario,
+same model). **LLM-summarize** (M4) is what production frameworks actually do: at the
+budget, a model writes a summary of the old messages and the conversation continues
+from that — here the agent model itself, under a **frozen, neutral prompt** (committed
+verbatim in `docs/M4-BRIEF.md` before any paid call — no prompt-shopping; a NULL was
+pre-committed as a reportable result). **Head-tail** (M5) keeps the conversation's
+start and its most recent turns and cuts the middle; our rule lives in user turn 0,
+inside the protected head, so its survival is guaranteed *by construction* —
+"accidentally protective": the framework doesn't know it's protecting a policy, it
+just keeps the beginning.
 
 | arm (GLM-5.1, scenario #1) | k/n | rate | Wilson 95% | pre-committed verdict |
 |---|---|---|---|---|
 | clean floor | 0/40 | 0.0% | [0.0%, 8.8%] | — |
-| **LLM-summarize** | 2/40 | 5.0% | [1.4%, 16.5%] | gap [−4.5%, +16.5%] → **STRATEGY-NULL** |
-| recency-truncate | 20/20 | 100% | [83.9%, 100%] | (trunc − summ) [+75.2%, +98.6%], descriptive |
+| **head-tail** | 0/40 | 0.0% | [0.0%, 8.8%] | (ht − floor) [−8.8%, +8.8%], equivalence upper +8.8% ≤ +10% → **HEADTAIL-PROTECTIVE** |
+| **LLM-summarize** | 2/40 | 5.0% | [1.4%, 16.5%] | gap vs floor [−4.5%, +16.5%] → **STRATEGY-NULL** |
+| recency-truncate | 20/20 | 100% | [83.9%, 100%] | (trunc − ht) [+81.7%, +100%], descriptive ceiling |
 
-![m4 figure](figures/m4-summarize.png)
+![v2 strategy figure](figures/m5-strategies.png)
 
 The interval on (summarize − floor) straddled zero at N=20 (D8's pre-committed
 escalation fired), and still straddles zero at the final N=40 — so **no decay claim is
@@ -85,10 +91,25 @@ decay under summarization didn't disappear — it moved into the summarizer's ju
 about what's worth keeping, and it showed up precisely when that judgment dropped
 the rule.
 
-Honest scope: one model, one scenario, N=40, a single frozen summarizer prompt. "The
-summarizer usually keeps the rule" is this configuration's result, not a safety
-guarantee — 2/40 is not 0/40, and a rule that dies in generation-two summaries on 5%
-of runs is a real tail risk for long sessions with many compactions.
+**Head-tail was the mechanism story's falsification test — and it passed.** After M4,
+v2's claim sharpened to: *violations track whether the rule survives in context, not
+compaction itself.* Head-tail guarantees survival by design, so the prediction was
+~floor — and a violation with the rule verbatim in view would have falsified the claim
+(pre-committed as its own loud verdict, HEADTAIL-DECAYS-ANYWAY). The arm ran one
+straight wave at N=40 (an interim look can't settle an equivalence claim, so the peek
+was pre-committed away): **0/40**, with compaction firing in all 40 trials (80
+compactions; the middle verifiably cut every time, checked mechanically per trial) and
+the rule present at every tempting call. Survival here is an integrity **gate**, not
+an outcome — a guarantee you don't check is an assumption. The strategy table now
+spans the mechanism's whole range: eviction guaranteed → 20/20; survival usual → 2/40,
+failing exactly when the summary lost the rule; survival guaranteed → 0/40.
+
+Honest scope: one model, one scenario, N=40 per arm. "The summarizer usually keeps the
+rule" is that configuration's result under a single frozen summarizer prompt, not a
+safety guarantee — 2/40 is not 0/40, and a rule that dies in generation-two summaries
+on 5% of runs is a real tail risk for long sessions with many compactions. Head-tail's
+floor is likewise specific to its frozen one-message head — though any head that keeps
+turn 0 protects the rule by the same construction.
 
 ## How it was measured (the parts that keep it honest)
 
@@ -128,6 +149,7 @@ of runs is a real tail risk for long sessions with many compactions.
 | clean floor, rule visible | ~0% | 0/20 in all 4 cells — "consistent with ~0%", Wilson upper 16.1% |
 | after recency-truncate | 38% pooled across its scenarios | 20/20 in all 4 cells; the honest claim is the *gap interval* (≥ +77 points), not the 100% |
 | after LLM-summarize | 26% pooled across its scenarios | 2/40 (5.0%) on GLM/scenario #1 — gap vs floor straddles zero (**STRATEGY-NULL**); our self-summarizer kept the rule as a paraphrase in 38/40 final summaries |
+| after head-tail | 0% pooled — "only head_tail, which keeps the oldest turn, preserves the policy" | 0/40 on GLM/scenario #1, equivalent to the floor under the pre-committed +10-point margin (**HEADTAIL-PROTECTIVE**) — same direction, same mechanism |
 | pinned re-injection | restores the ~0% floor with a ~47-token pin | 0/40 in all 4 cells (Wilson upper 8.8%); pins ~50/~55 tokens |
 
 Three differences, stated plainly: our temptation is a **direct user request**, so once
@@ -142,11 +164,14 @@ brief.
 
 ## Honest caveats
 
-Two compaction strategies measured (recency-truncate — the paper's worst case — across
-the full grid; LLM-summarize on one model × one scenario; head-tail et al. remain
-deferred decision briefs). The summarize result is specific to its frozen summarizer
-configuration, and its paraphrase-survival count is a documented **hand-triage**, not a
-mechanical gate (verbatim survival is the string-checked number). Scenario #2 on one
+Three compaction strategies measured (recency-truncate — the paper's worst case —
+across the full grid; LLM-summarize and head-tail on one model × one scenario). The
+summarize result is specific to its frozen summarizer configuration, and its
+paraphrase-survival count is a documented **hand-triage**, not a mechanical gate
+(verbatim survival is the string-checked number). Head-tail's floor is specific to its
+frozen one-message head. No pin arm ran on either v2 strategy — vacuous by their
+pre-committed gates (no gap to restore under summarize; nothing ever absent under
+head-tail). Scenario #2 on one
 model by design. Hobby N: a 0/20 floor is "consistent with ~0%", never "proved 0%".
 Temperature 0.7 everywhere (signal from N, not from faked determinism); reasoning
 disabled on GLM/Qwen, provider-default on Gemini (never crosses a comparison — all
@@ -159,24 +184,27 @@ permanently.
 cp .env.example .env          # add a real OPENROUTER_API_KEY
 uv run test_stats.py          # ... the 13 offline suites are free and gate everything:
                               # test_{stats,grader,compaction,eviction,m1,pinning,m2,
-                              #        grader2,eviction2,m3,summarize,m4}.py
+                              #        grader2,eviction2,m3,summarize,m4,headtail}.py
 uv run runner.py floor-glm glm 20 0                 # one arm: label model n compaction
 uv run runner.py pin2-glm glm 40 1 2200 1 calendar  # ... budget pinning scenario
-uv run runner.py summ-glm glm 20 1 2200 0 email summarize   # ... strategy (M4)
+uv run runner.py summ-glm glm 20 1 2200 0 email summarize    # ... strategy (M4)
+uv run runner.py headtail-glm glm 40 1 2200 0 email head-tail   # ... strategy (M5)
 uv run m1.py && uv run m2.py && uv run m3.py        # verdicts (pre-committed rules)
-uv run m4.py glm floor-glm summ-glm - trunc-glm     # the strategy verdict
-uv run figure_capstone.py && uv run figure_m4.py    # the figures above
+uv run m4.py glm floor-glm summ-glm - trunc-glm     # the summarize strategy verdict
+uv run m5.py                                        # the head-tail strategy verdict
+uv run figure_capstone.py && uv run figure_m5.py    # the figures above
 ```
 
 Python 3.11+ / `uv` / matplotlib; models via OpenRouter. Full v1 spend: ~5.2M prompt
-tokens across ~350 episodes; M4 added ~1.1M across 65 more. Single-digit dollars
-total. The binding constraint throughout was **statistics, not code or cost**.
+tokens across ~350 episodes; M4 added ~1.1M across 65 more; M5 added ~0.6M across 45
+more (the cheapest stage — no summarizer overhead). Single-digit dollars total. The
+binding constraint throughout was **statistics, not code or cost**.
 
 ## The docs spine
 
 [`docs/KICKOFF.md`](docs/KICKOFF.md) (approved scope + gates) ·
 [`ROADMAP.md`](ROADMAP.md) (per-stage results) ·
-[`DECISIONS.md`](DECISIONS.md) (D1–D18: every real choice, options and why) ·
+[`DECISIONS.md`](DECISIONS.md) (D1–D21: every real choice, options and why) ·
 [`LEARNING.md`](LEARNING.md) (plain-English teaching notes + vocabulary) ·
 stage briefs in [`docs/`](docs/) (options argued *before* each stage's code).
 

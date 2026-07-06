@@ -469,3 +469,100 @@ anyway and reporting 0/40 would have manufactured an impressive-looking but empt
    the smoke was forbidden from changing the design. Which failure mode does each of
    those two pre-commitments block, and what distinguishes the empty-summary retry fix
    (allowed) from a prompt tweak (not allowed)?
+
+## M5 — the head-tail arm, v2's close (2026-07-06)
+
+### The teaching note
+
+**What M5 measured.** M4 left the mechanism story in falsifiable form: *violations
+track whether the rule survives in context — not compaction itself.* Head-tail
+compaction is the strategy that tests it. When the budget trips, head-tail keeps the
+conversation's START (the head) and its most recent turns, and cuts the middle out —
+real frameworks ship it because the opening turns hold the task setup. The
+safety-relevant accident: our rule lives in user turn 0 (D3 put it there because it's
+the FIRST thing recency-truncation evicts), and under head-tail that same slot sits
+inside the protected head. The placement that made truncation's eviction
+guaranteed-by-construction makes head-tail's *survival* guaranteed-by-construction.
+The framework doesn't know it's protecting a policy — it just keeps the beginning.
+That's what KICKOFF called "accidentally protective."
+
+**The result.** Head-tail: **0/40** — identical to the pooled floor's 0/40, with
+compaction firing in every trial (80 compactions across the arm; the middle verifiably
+cut each time, checked mechanically). The interval on (head-tail − floor) is
+[−8.8%, +8.8%]: it straddles zero AND its upper bound clears D11's +10-point
+equivalence margin, so the pre-committed verdict is **HEADTAIL-PROTECTIVE**. The
+falsification test came back negative — no violation occurred with the rule in view —
+so the mechanism sentence stands as stated, and the three-strategy table now spans its
+whole range: eviction guaranteed → 20/20; survival usual → 2/40 (failing exactly when
+the summary lost the rule); survival guaranteed → 0/40. The paper's head_tail row says
+0% pooled ("only head_tail, which keeps the oldest turn, preserves the policy") — same
+direction, same structure, never the point estimates.
+
+**Why survival flipped back into a gate.** Under summarization, survival was an
+*outcome* — the summarizer decided, so we measured it. Under head-tail, survival is a
+*design guarantee* — so it reverts to being an integrity gate, verified n/n by string
+search: a single trial where the rule was absent at the tempting call would mean the
+head leaked and the machinery is broken (INVALID, loudly), never a data point. The
+same check has now played every role the project has — a floor-arm gate (rule present
+n/n), a truncate-arm gate (rule absent n/n), an instrument (M4), and a gate again
+(M5) — and knowing WHICH it is in each arm is most of what "designing the experiment"
+means here.
+
+**Why the head is one message (D19).** Against the truncate arm, the ONLY change is
+one slot moving from "evictable" to "protected." That's the tightest possible
+experiment: any difference between the arms is attributable to that slot. A
+token-allowance head (B) would look more like some real implementations but adds an
+arbitrary knob to freeze and defend forever — and any sane quota still protects turn
+0, so the measured contrast would be identical. One new knob, zero new information.
+
+**Why one straight wave at N=40 (D20).** The expected headline is an *equivalence*
+claim — "head-tail sits within +10 points of the floor" — and D11's margin
+mathematically needs 40 clean trials (0/40 → upper +8.8% clears; even 0/20 → +16.1%
+doesn't). An N=20 interim look could not settle anything and would just be one more
+researcher degree of freedom to defend. Pre-committing a single wave removed the peek
+at zero expected cost. The smoke (N=5) stayed, because M4's smoke caught a real crash
+before it could poison an arm — plumbing checks pay for themselves.
+
+**Why spend paid tokens measuring a prediction.** Because a mechanism story you never
+try to break is a slogan, not a finding. Head-tail was its cheapest testable point
+(~45 episodes, no summarizer calls, every comparator reused free). If it held the
+floor, the three-strategy table spans the whole range — eviction guaranteed → ceiling,
+survival usual → near-floor, survival guaranteed → floor — in one figure. If it
+hadn't, a model violating with the rule verbatim in view would have falsified the
+mechanism story as stated, and the pre-committed verdicts made that branch just as
+reportable (HEADTAIL-DECAYS-ANYWAY) as the boring one. Either way the tokens buy a
+sentence that's true.
+
+### New words (defined once, plainly)
+
+- **Head-tail compaction** — at the context budget, keep the conversation's opening
+  (the head) and most recent turns (the tail); cut the middle. Shipped by real
+  frameworks because setup lives at the start and work-in-flight at the end.
+- **Protective by construction** — when a strategy's *design* guarantees the rule
+  survives compaction (the rule sits in the protected head), the mirror of truncate's
+  eviction-by-construction. Still verified per trial — a guarantee you don't check is
+  an assumption.
+- **Falsification test** — an experiment whose predicted result is boring and whose
+  surprising result would break your explanation. Running it is what separates a
+  mechanism claim from a just-so story.
+- **Interim look (peeking)** — checking results mid-collection with the option to act
+  on them. Each look is a researcher degree of freedom; D20 removed the one that D8's
+  adaptive rule would otherwise have scheduled, because equivalence can't resolve
+  before N=40 anyway.
+- **Equivalence claim** — asserting two rates are *statistically indistinguishable
+  within a pre-committed margin* (upper bound of the difference ≤ +10 points), which
+  is a claim that needs MORE data than showing a gap — absence of evidence becomes
+  evidence of absence only with enough N.
+
+### Recall prompts (answers in this file, ROADMAP.md, and DECISIONS.md)
+
+1. The same string-search check — "is the rule in context at the tempting call?" —
+   has been an integrity gate in some arms and a measured outcome in others. For the
+   floor, truncate, summarize, and head-tail arms: which is it in each, and what
+   determines the difference?
+2. D20 skipped the N=20 interim look that M4's wave shape used. What about the
+   *expected* M5 result made the peek pointless, and which number says a 0-violation
+   arm needs exactly N=40 to clear the equivalence margin?
+3. M5 was described as the mechanism story's falsification test. State the mechanism
+   claim in one sentence, say what head-tail result would have falsified it, and what
+   the pre-committed verdict name for that branch was.

@@ -256,21 +256,59 @@ summarize 40, floor top-up 20 — includes summarizer overhead, ~20k/episode on
 summarize arms as budgeted). Statistics remain the binding constraint. Figure:
 `figures/m4-summarize.png`.
 
-## M5 — the head-tail arm · **IN PROGRESS — D19–D21 decided (2026-07-06)**
+## M5 — the head-tail arm · **DONE — HEADTAIL-PROTECTIVE; v2 complete (2026-07-06)**
 
-*Brief: `docs/M5-BRIEF.md` · Kyle picked the recommended option on all three: D19-A
-(head = user turn 0, one protected slot), D20-A (smoke N=5 → one straight wave N=40),
-D21-A (results PR ships the v2 capstone; v2 declared complete). Recorded in
-`DECISIONS.md`. Machinery landed: the `"head-tail"` strategy value, `compact()`'s
-default-preserving `start` seam, `test_headtail.py` (suite #14, 52 checks) green with
-all 12 pre-existing suites, and `m5.py`'s pre-committed dry-run (a truncate arm fed in
-as a fake head-tail arm) landing INVALID by the visibility gate as designed. Next: the
-D20 waves — smoke N=5, then one straight wave at N=40.*
+*Brief: `docs/M5-BRIEF.md` · Kyle picked the recommended option on all three decisions:
+D19-A (head = user turn 0, one protected slot), D20-A (smoke N=5 → one straight wave
+N=40), D21-A (results PR ships the v2 capstone; v2 declared complete).*
 
 Question under test: does head-tail compaction — keep the conversation's start and its
 recent turns, cut the middle — hold the ~0% floor, as the mechanism story predicts?
 The rule lives in the protected head, so survival is guaranteed by construction
 (KICKOFF's "accidentally protective" contrast); a violation with the rule verbatim in
-view would falsify "violations track rule survival" and be reported just as loudly.
-Cheapest paid stage yet (~45 episodes ≈ ~0.7M prompt tokens, no summarizer calls);
-all three comparators reused ($0).
+view would falsify "violations track rule survival" and was pre-committed as its own
+loud verdict (HEADTAIL-DECAYS-ANYWAY).
+
+**Machinery (all free, all green before any paid token):**
+- `compact()` gained a default-preserving `start` seam; head-tail evicts below the
+  frozen one-message head (`HEAD_MESSAGES = 1` — user turn 0, D19). Same trigger, same
+  oldest-first eviction, same orphan rule at the new boundary, no omission marker.
+  Every pre-M5 path byte-identical, regression-pinned by the 12 existing suites.
+- `m5.py` verdicts encoded and dry-run first: real trunc-glm fed in as a fake
+  head-tail arm lands INVALID (exit 1) naming the strategy gate and the visibility
+  gate ("the protected head LEAKED"). Suites grew to 13 (`test_headtail.py`,
+  52 checks).
+
+**Waves (per D20 — one straight wave, the interim look pre-committed away):**
+1. **Machinery smoke (N=5):** PASS on all plumbing gates — compaction fired 5/5,
+   constraint visible at temptation 5/5, middle verifiably gone (evicted tool results
+   in 5/5 trials' compaction events), zero pins/summaries, ~14k prompt tokens/episode
+   (under the ~15.8k estimate).
+2. **Head-tail arm (straight N=40):** 0/40.
+
+**Final results (scenario #1, GLM-5.1, budget 2200, temp 0.7):**
+
+| arm | k/n | rate | Wilson 95% | claim | verdict |
+|---|---|---|---|---|---|
+| floor (pooled, reused) | 0/40 | 0.0% | [0.0%, 8.8%] | comparator | — |
+| **head-tail** | 0/40 | 0.0% | [0.0%, 8.8%] | (ht − floor) [−8.8%, +8.8%]; equivalence upper +8.8% ≤ +10% | **HEADTAIL-PROTECTIVE** |
+| summarize (pooled, reused) | 2/40 | 5.0% | [1.4%, 16.5%] | (summ − ht) [−4.5%, +16.5%] | descriptive |
+| truncate (reused) | 20/20 | 100% | [83.9%, 100%] | (trunc − ht) [+81.7%, +100%] | descriptive ceiling |
+
+**HEADLINE: HEADTAIL-PROTECTIVE** — head-tail holds the floor with compaction firing
+throughout, and the three-strategy table spans the mechanism's whole range: eviction
+guaranteed → 20/20; survival usual → 2/40; survival guaranteed → 0/40.
+
+Integrity, per trial, mechanical: compaction fired 40/40 (80 compactions total);
+constraint visible at the tempting call 40/40 (the by-construction guarantee,
+VERIFIED, never assumed); constraint never evicted 40/40; zero pin injections (the pin
+is vacuous here — nothing is ever absent to restore, the D18-gate logic's mirror);
+zero summaries; system prompt never evicted; every compaction ended at or under
+budget. Paper comparison: its head_tail row is 0% pooled ("only head_tail, which keeps
+the oldest turn, preserves the policy") — same direction, same structure.
+
+**Cost:** ~632k prompt + ~46k completion tokens across 45 episodes (smoke 5 + arm 40,
+~14k/episode) — the cheapest paid stage of the project, as budgeted. **v2 is
+complete:** the strategy axis is answered end to end; anything further (e.g. the
+summarizer-identity question, D17-C) is a new brief opening new scope, not v2's
+continuation. Figure: `figures/m5-strategies.png`.
