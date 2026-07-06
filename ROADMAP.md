@@ -191,15 +191,67 @@ Gemini-flash contrast, the scenario-#2 replication, and the capstone figure. Ful
 spend ≈ 5.2M prompt tokens across ~350 episodes — single-digit dollars; the binding
 constraint was statistics, exactly as the kickoff predicted.
 
-## M4 — the LLM-summarize arm (v2) · **IN PROGRESS — brief merged; machinery next**
+## M4 — the LLM-summarize arm (v2) · **DONE — STRATEGY-NULL: the production strategy mostly preserves the rule (2026-07-06)**
 
-*Brief: `docs/M4-BRIEF.md` · branch `docs/m4-brief` (brief) · date 2026-07-05*
+*Brief: `docs/M4-BRIEF.md` · PRs #10 (brief), #11 (machinery), #12 (retry fix),
+results PR · dates 2026-07-05/06*
 
 Question under test: does the rule decay under the compaction strategy production
 frameworks actually use — LLM-summarization — where eviction of the constraint is no
 longer guaranteed by construction but becomes a measured outcome? Paper's number for
 this arm: 26% pooled (vs truncate's 38%). D16 (prefix-summary replacement, frozen
-neutral summarizer prompt), D17 (self-summarize), D18 (sequential gated waves on
-GLM-5.1 / scenario #1: smoke N=5 → summarize N=20 adaptive → pin-summarize N=40 only
-if a gap shows). A NULL gap is pre-committed as a reportable headline, not a failure.
-Verdicts to be encoded in `m4.py` and dry-run before any paid token.
+neutral summarizer prompt, committed verbatim before any paid call), D17
+(self-summarize), D18 (sequential gated waves on GLM-5.1 / scenario #1). A NULL gap
+was pre-committed as a reportable headline, not a failure.
+
+**Machinery (all free, all green before any paid token):**
+- Strategy seam in `agent.py`/`runner.py`: same budget trigger as truncate, deeper
+  eviction (budget − 512) through the untouched frozen `compact()`, summary inserted
+  at index 1 under the frozen wrapper (rolling summary emerges by placement alone).
+  Every pre-M4 path byte-compatible, regression-pinned by the existing suites.
+- Survival instrumentation: verbatim string check per compaction + full summary text
+  in every trajectory for hand-triage; empty summaries retry ≤3 (logged) then die
+  loudly — never a silent fallback to truncation.
+- `m4.py` verdicts encoded and dry-run first: real trunc-glm fed as a fake summarize
+  arm lands INVALID (exit 1) naming both gates; the restoration path reproduces M2's
+  +81.7%/+8.8% through the shared m2 rule. Suites grew to 13 (`test_summarize.py`
+  41 checks, `test_m4.py` 27 checks).
+
+**Waves (per D18, each gate pre-committed):**
+1. **Machinery smoke (N=5):** PASS on all plumbing gates — compaction fired 5/5, one
+   non-empty summary per compaction 5/5, ~18k tokens/episode (inside 2× estimate).
+   (First attempt crashed loudly on a transient GLM empty-content response — the smoke
+   doing its job; fixed as bounded logged retries, PR #12, frozen prompt untouched.)
+2. **Summarize arm (N=20 → 40):** 1/20 at N=20 → Newcombe (summ − floor)
+   [−11.6%, +23.6%] straddles zero → **ESCALATE fired** (D8); both arms extended to
+   N=40 (floor topped up 0/20 → pooled 0/40, visible 40/40).
+3. **Pin-summarize wave: SKIPPED as vacuous** per the D18 gate — no gap, nothing to
+   restore.
+
+**Final-N results (scenario #1, GLM-5.1, budget 2200, temp 0.7):**
+
+| arm | k/n | rate | Wilson 95% | claim | verdict |
+|---|---|---|---|---|---|
+| floor (pooled) | 0/40 | 0.0% | [0.0%, 8.8%] | comparator | — |
+| summarize (pooled) | 2/40 | 5.0% | [1.4%, 16.5%] | gap +5.0%, Newcombe [−4.5%, +16.5%] | **STRATEGY-NULL** |
+| truncate (reused) | 20/20 | 100% | [83.9%, 100%] | (trunc − summ) [+75.2%, +98.6%] | descriptive ceiling |
+
+**HEADLINE: STRATEGY-NULL** — no decay claim for LLM-summarize at this scale; the
+production strategy sits ~95 points below truncate's ceiling.
+
+Integrity, per trial, mechanical: compaction fired 40/40; one non-empty summary per
+compaction 40/40 (65 summaries total, 0 empty-retries in the final arms); verbatim
+survival at temptation 0/40 (the string-checked number). **Hand-triage of all 65 saved
+summaries (the mechanism):** the final pre-temptation summary carried the policy as a
+*paraphrase* in 38/40 trials — those 38 produced 0 violations; the 2 trials whose
+final summary lost the policy (both second-generation rolling summaries — a summary of
+a summary) are exactly the 2 violations. The violation rate is governed by summary
+survival, not model memory: the paper's constraint-survives/dropped split, one level
+down. Honest caveats: one model × one scenario × one frozen summarizer prompt; 2/40 is
+a real tail risk over many compactions, not a safety guarantee; paraphrase counts are
+a documented human audit (verbatim survival stays the mechanical number).
+
+**Cost:** ~1.09M prompt + ~97k completion tokens across 65 episodes (smoke 5,
+summarize 40, floor top-up 20 — includes summarizer overhead, ~20k/episode on
+summarize arms as budgeted). Statistics remain the binding constraint. Figure:
+`figures/m4-summarize.png`.
