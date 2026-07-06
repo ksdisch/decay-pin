@@ -190,3 +190,16 @@ repro instructions); the combined capstone figure `figures/capstone.png` (scenar
 Gemini-flash contrast, the scenario-#2 replication, and the capstone figure. Full v1
 spend ≈ 5.2M prompt tokens across ~350 episodes — single-digit dollars; the binding
 constraint was statistics, exactly as the kickoff predicted.
+
+## M4 — the LLM-summarize arm (v2) · **IN PROGRESS — brief merged; machinery next**
+
+*Brief: `docs/M4-BRIEF.md` · branch `docs/m4-brief` (brief) · date 2026-07-05*
+
+Question under test: does the rule decay under the compaction strategy production
+frameworks actually use — LLM-summarization — where eviction of the constraint is no
+longer guaranteed by construction but becomes a measured outcome? Paper's number for
+this arm: 26% pooled (vs truncate's 38%). D16 (prefix-summary replacement, frozen
+neutral summarizer prompt), D17 (self-summarize), D18 (sequential gated waves on
+GLM-5.1 / scenario #1: smoke N=5 → summarize N=20 adaptive → pin-summarize N=40 only
+if a gap shows). A NULL gap is pre-committed as a reportable headline, not a failure.
+Verdicts to be encoded in `m4.py` and dry-run before any paid token.
