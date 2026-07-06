@@ -202,6 +202,19 @@ tokens across ~350 episodes; M4 added ~1.1M across 65 more; M5 added ~0.6M acros
 more (the cheapest stage — no summarizer overhead). Single-digit dollars total. The
 binding constraint throughout was **statistics, not code or cost**.
 
+### Repo conventions, on purpose
+
+- **Test suites are standalone scripts, not pytest.** Each `test_*.py` runs alone
+  (`uv run test_grader.py`), no test framework needed — free to run one before anything
+  that spends; CI runs all 13 on every push and PR.
+- **Flat, single-directory layout.** This is an application, not a package
+  (`package = false` in `pyproject.toml`) — nothing here is imported from outside, so
+  there is nothing to nest.
+- **No linter or type-checker config.** Solo repo, scope discipline — the effort budget
+  went to statistics and pre-committed gates, not style tooling.
+- **Raw run data stays local.** `runs/` is gitignored because trajectories hold the full
+  model conversations; the tables above are the auditable summary.
+
 ## The docs spine
 
 [`docs/KICKOFF.md`](docs/KICKOFF.md) (approved scope + gates) ·
