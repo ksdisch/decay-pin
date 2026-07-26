@@ -230,3 +230,7 @@ Direct successor to [forge-gap](https://github.com/ksdisch/forge-gap): same reci
 reproduce a published finding, measure a narrow slice honestly, never invent. The
 framing throughout: *reproduced and measured a published finding — here is the narrow,
 measured slice.*
+
+---
+
+📚 **Project wiki:** [PROJECT.md](PROJECT.md) — status, scope, and next actions · [Wiki/_index.md](Wiki/_index.md) — topic pages and history
